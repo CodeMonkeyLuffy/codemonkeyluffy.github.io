@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>30条MySQL查询的优化方法 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>30条MySQL查询的优化方法</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年01月02日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#mysql" class='tag'>mysql</a>
+
+
+            
+          </div>
+          <p>以下是广泛使用的30个SQL查询语句优化方法：</p>
+<ol>
+<li><p>应尽量避免在 <code>where</code> 子句中使用<code>!=</code>或<code>&lt;&gt;</code>操作符，否则将引擎放弃使用索引而<strong>进行全表扫描</strong>。</p>
+</li>
+<li><p>对查询进行优化，首先应考虑在 <code>where</code> 及 <code>order by</code> 涉及的列上建立索引，避免<strong>全表扫描</strong>。</p>
+</li>
+<li><p>应尽量避免在 <code>where</code> 子句中对字段进行 <code>null</code> 值判断，否则将导致引擎放弃使用索引，而<strong>进行全表扫描</strong>，如：</p>
+</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num is null</span><br></pre></td></tr></table></figure>
+<p>可以在num上设置默认值<code>0</code>，确保表中num列没有<code>null</code>值，然后这样查询：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num=0</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>尽量避免在 <code>where</code> 子句中使用 <code>or</code> 来连接条件，否则将导致引擎放弃使用索引，而<strong>进行全表扫描</strong>，如：</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num=10 or num=20</span><br></pre></td></tr></table></figure>
+<p>可以用<code>union</code>来查询：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num=10</span><br><span class="line">union all</span><br><span class="line">select id from t where num=20</span><br></pre></td></tr></table></figure>
+<ol start="5">
+<li>前置百分号的查询也将<strong>导致全表扫描</strong>：</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where name like &apos;%abc%&apos;</span><br></pre></td></tr></table></figure>
+<p>若要提高效率，可以考虑全文检索。</p>
+<ol start="6">
+<li><code>in</code> 和 <code>not in</code> 也要慎用，否则会<strong>导致全表扫描</strong>，如：</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num in(1,2,3)</span><br></pre></td></tr></table></figure>
+<p>对于连续的数值，<strong>能用 between 就不要用 in 了</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num between 1 and 3</span><br></pre></td></tr></table></figure>
+<ol start="7">
+<li>如果在 <code>where</code> 子句中<strong>使用参数</strong>，也会<strong>导致全表扫描</strong>。</li>
+</ol>
+<p>因为SQL只有在运行时才会解析局部变量，但优化程序不能将访问计划的选择推迟到运行时。</p>
+<p>它必须在编译时进行选择。</p>
+<p>然而，如果在编译时建立访问计划，变量的值还是未知的，因而无法作为索引选择的输入项。</p>
+<p>如下面语句将进行全表扫描：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num=@num</span><br></pre></td></tr></table></figure>
+<p>可以改为强制查询使用索引：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t with(index(索引名)) where num=@num</span><br></pre></td></tr></table></figure>
+<ol start="8">
+<li>应尽量避免在 <code>where</code> 子句中对字段进行<strong>表达式操作</strong>。</li>
+</ol>
+<p>这将导致引擎放弃使用索引而<strong>进行全表扫描</strong>。如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num/2=100</span><br></pre></td></tr></table></figure>
+<p>应改为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select id from t where num=100*2</span><br></pre></td></tr></table></figure>
+<ol start="9">
+<li>应尽量避免在<code>where</code>子句中对字段进行<strong>函数操作</strong>。</li>
+</ol>
+<p>这将导致引擎放弃使用索引而<strong>进行全表扫描</strong>。如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">select id from t where substring(name,1,3)=&apos;abc&apos;–name       -- 以abc开头的id</span><br><span class="line">select id from t where datediff(day, createdate, &apos;2005-11-30&apos;)=0–&apos;2005-11-30&apos;    -- 生成的id</span><br></pre></td></tr></table></figure>
+<p>应改为:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">select id from t where name like &apos;abc%&apos;</span><br><span class="line">select id from t where createdate&gt;=&apos;2005-11-30&apos; and createdate&lt;&apos;2005-12-1&apos;</span><br></pre></td></tr></table></figure>
+<ol start="10">
+<li>不要在 <code>where</code> 子句中的等式判断<strong>=左边进行函数、算术运算或其他表达式运算</strong>，否则系统将可能<strong>无法正确使用索引</strong>。</li>
+<li>在复合索引中，在使用索引字段作为条件时，必须使用到该索引中的第一个字段作为条件时，才能保证系统使用该索引，否则该索引将不会被使用，并且应<strong>尽可能的让字段顺序与索引顺序相一致</strong>。</li>
+<li>不要写一些没有意义的查询，如需要生成一个空表结构：</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select col1,col2 into #t from t where 1=0</span><br></pre></td></tr></table></figure>
+<p>这类代码不会返回任何结果集，但是会消耗系统资源的，应改成这样：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">create table #t(…)</span><br></pre></td></tr></table></figure>
+<ol start="13">
+<li>很多时候用 <code>exists</code> 代替 <code>in</code> 是一个好的选择：</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select num from a where num in(select num from b)</span><br></pre></td></tr></table></figure>
+<p>用下面的语句替换：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select num from a where exists(select 1 from b where num=a.num)</span><br></pre></td></tr></table></figure>
+<ol start="14">
+<li>并不是所有索引对查询都有效。</li>
+</ol>
+<p>SQL是根据表中数据来进行查询优化的，当<strong>索引列有大量数据重复时，SQL查询可能不会去利用索引</strong>。</p>
+<p>如一表中有字段 <code>sex</code>、<code>male</code>、<code>female</code>几乎各一半，那么即使在<code>sex</code>上建了索引也对查询效率起不了作用。</p>
+<ol start="15">
+<li><strong>索引并不是越多越好。</strong></li>
+</ol>
+<p>索引固然可以提高相应的 <code>select</code> 的效率，但同时也降低了 <code>insert</code> 及 <code>update</code> 的效率。</p>
+<p>因为 <code>insert</code> 或 <code>update</code> 时有可能会重建索引，</p>
+<p>所以怎样建索引需要慎重考虑，视具体情况而定。</p>
+<p>一个表的索引数最好不要超过<code>6</code>个。</p>
+<p>若太多，则应考虑一些不常使用到的列上建的索引是否有 必要。</p>
+<ol start="16">
+<li>应尽可能的避免更新 <code>clustered</code> 索引数据列。</li>
+</ol>
+<p>一旦该列值改变，将导致整个表记录的顺序的调整，会耗费相当大的资源。</p>
+<p>若应用系统需要频繁更新<code>clustered</code> 索引数据列，那么需要考虑是否应将该索引建为 <code>clustered</code> 索引。</p>
+<ol start="17">
+<li><p>尽量使用数字型字段<br>若只含数值信息的字段，尽量不要设计为字符型。<br>否则会降低查询和连接的性能，并会增加存储开销。<br>这是因为，引擎在处理查询和连接时，会逐个比较字符串中每一个字符。<br>而对于数字型而言只需要比较一次就够了。<br>例如，PHP可以使用ip2long()和long2ip()函数把IP地址转成整型后，再存放进数据库。</p>
+</li>
+<li><p><strong>尽可能的使用 varchar/nvarchar 代替 char/nchar</strong> 。</p>
+<p>首先，变长字段存储空间小，可以节省存储空间。</p>
+<p>其次，对于查询来说，在一个相对较小的字段内搜索效率显然要高些。</p>
+</li>
+<li><p>任何地方都不要使用 <code>select * from t</code> ，用具体的字段列表代替“*”，不要返回用不到的任何字段。</p>
+</li>
+<li><p><strong>尽量使用表变量来代替临时表。</strong><br>如果表变量包含大量数据，请注意索引非常有限（只有主键索引）。</p>
+</li>
+<li><p><strong>避免频繁创建和删除临时表</strong>，以减少系统表资源的消耗。</p>
+</li>
+<li><p>临时表并不是不可使用，适当地使用它们可以使某些例程更有效。<br>例如，当需要重复引用大型表或常用表中的某个数据集时。<br>但是，对于一次性事件，最好使用导出表。</p>
+</li>
+<li><p>在新建临时表时，如果一次性插入数据量很大，那么可以使用 <code>select into</code> 代替<code>create table</code>。<br>这样可以避免造成大量 log ，提高速度。<br>如果数据量不大，为了缓和系统表的资源，应先<code>create table</code>，然后insert。</p>
+</li>
+<li><p>如果使用到了临时表，在存储过程的最后，务必将所有的临时表显式删除。<br>先 <code>truncate table</code> ，然后 <code>drop table</code> 。<br>这样可以避免系统表的较长时间锁定</p>
+</li>
+<li><p><strong>尽量避免使用游标</strong><br>因为游标的效率较差，如果游标操作的数据超过1万行，那么就应该考虑改写。</p>
+</li>
+<li><p>基于集的方法通常更有效<br>使用基于游标的方法或临时表方法之前，应先寻找基于集的解决方案来解决问题。</p>
+</li>
+<li><p>与临时表一样，游标并不是不可使用<br>对小型数据集使用<code>FAST_FORWARD</code> 游标，通常要优于其他逐行处理方法<br>尤其是在必须引用几个表才能获得所需的数据时<br>在结果集中包括“合计”的例程，通常要比使用游标执行的速度快<br>如果开发时间允许，基于游标的方法和基于集的方法都可以尝试一下，看哪一种方法的效果更好</p>
+</li>
+<li><p>在所有的存储过程和触发器的开始处设置 <code>SET NOCOUNT ON</code> ，在结束时设置 <code>SET NOCOUNT OFF</code> </p>
+</li>
+</ol>
+<p>无需在执行存储过程和触发器的每个语句后向客户端发送 <code>DONE_IN_PROC</code> 消息。</p>
+<ol start="29">
+<li><p><strong>尽量避免向客户端返回大数据量。</strong><br>若数据量过大，应该考虑相应需求是否合理。</p>
+</li>
+<li><p>尽量避免大事务操作，提高系统并发能力。 </p>
+</li>
+</ol>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
