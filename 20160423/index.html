@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>MySQL Explain 解析 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>MySQL Explain 解析</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年04月23日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#mysql" class='tag'>mysql</a>
+
+
+            
+          </div>
+          <h4 id="一、语法"><a href="#一、语法" class="headerlink" title="一、语法"></a>一、语法</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">explain &lt; table_name &gt;</span><br></pre></td></tr></table></figure>
+<p>例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">explain select * from t3 where id=3952602;</span><br></pre></td></tr></table></figure>
+<h4 id="二、explain输出解释"><a href="#二、explain输出解释" class="headerlink" title="二、explain输出解释"></a>二、explain输出解释</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">+----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------+</span><br><span class="line">| id | select_type | table | type  | possible_keys     | key     | key_len | ref   | rows | Extra |</span><br><span class="line">+----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------+</span><br></pre></td></tr></table></figure>
+<h4 id="1-id"><a href="#1-id" class="headerlink" title="1 id"></a>1 id</h4><p>SQL执行的顺利的标识，SQL从大到小的执行。</p>
+<p>例如:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from (select * from ( select * from t3 where id=3952602) a) b;</span><br><span class="line">+----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br><span class="line">| id | select_type | table      | type   | possible_keys     | key     | key_len | ref  | rows | Extra |</span><br><span class="line">+----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br><span class="line">|  1 | PRIMARY     | &lt;derived2&gt; | system | NULL              | NULL    | NULL    | NULL |    1 |       |</span><br><span class="line">|  2 | DERIVED     | &lt;derived3&gt; | system | NULL              | NULL    | NULL    | NULL |    1 |       |</span><br><span class="line">|  3 | DERIVED     | t3         | const  | PRIMARY,idx_t3_id | PRIMARY | 4       |      |    1 |       |</span><br><span class="line">+----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br></pre></td></tr></table></figure>
+<p>很显然这条SQL是从里向外的执行，就是从<code>id=3</code> 向上执行。</p>
+<h4 id="2-select-type"><a href="#2-select-type" class="headerlink" title="2 select_type"></a>2 select_type</h4><p>就是<code>select</code>类型，可以有以下几种</p>
+<p><strong>（1）SIMPLE</strong></p>
+<p>简单<code>SELECT</code>（不使用<code>UNION</code>或<code>子查询</code>等）。</p>
+<p>例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from t3 where id=3952602;</span><br><span class="line"> +----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------+</span><br><span class="line"> | id | select_type | table | type  | possible_keys     | key     | key_len | ref   | rows | Extra |</span><br><span class="line"> +----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------+</span><br><span class="line"> |  1 | SIMPLE      | t3    | const | PRIMARY,idx_t3_id | PRIMARY | 4       | const |    1 |       |</span><br><span class="line"> +----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------+</span><br></pre></td></tr></table></figure>
+<p><strong>（2）PRIMARY</strong></p>
+<p>就是最外层的<code>select</code>。</p>
+<p>例如:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from (select * from t3 where id=3952602) a ;</span><br><span class="line"> +----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br><span class="line"> | id | select_type | table      | type   | possible_keys     | key     | key_len | ref  | rows | Extra |</span><br><span class="line"> +----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br><span class="line"> |  1 | PRIMARY     | &lt;derived2&gt; | system | NULL              | NULL    | NULL    | NULL |    1 |       |</span><br><span class="line"> |  2 | DERIVED     | t3         | const  | PRIMARY,idx_t3_id | PRIMARY | 4       |      |    1 |       |</span><br><span class="line"> +----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br></pre></td></tr></table></figure>
+<p><strong>（3）UNION</strong></p>
+<p><code>UNION</code>中的第二个或后面的<code>SELECT</code>语句。</p>
+<p>例如</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from t3 where id=3952602 union all select * from t3 ;</span><br><span class="line"> +----+--------------+------------+-------+-------------------+---------+---------+-------+------+-------+</span><br><span class="line"> | id | select_type  | table      | type  | possible_keys     | key     | key_len | ref   | rows | Extra |</span><br><span class="line"> +----+--------------+------------+-------+-------------------+---------+---------+-------+------+-------+</span><br><span class="line"> |  1 | PRIMARY      | t3         | const | PRIMARY,idx_t3_id | PRIMARY | 4       | const |    1 |       |</span><br><span class="line"> |  2 | UNION        | t3         | ALL   | NULL              | NULL    | NULL    | NULL  | 1000 |       |</span><br><span class="line"> |NULL | UNION RESULT | &lt;union1,2&gt; | ALL   | NULL              | NULL    | NULL    | NULL  | NULL |       |</span><br><span class="line"> +----+--------------+------------+-------+-------------------+---------+---------+-------+------+-------+</span><br></pre></td></tr></table></figure>
+<p><strong>（4）DEPENDENT UNION</strong></p>
+<p><code>UNION</code>中的第二个或后面的<code>SELECT</code>语句，取决于外面的查询。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from t3 where id in (select id from t3 where id=3952602 union all select id from t3)  ;</span><br><span class="line"> +----+--------------------+------------+--------+-------------------+---------+---------+-------+------+--------------------------+</span><br><span class="line"> | id | select_type        | table      | type   | possible_keys     | key     | key_len | ref   | rows | Extra                    |</span><br><span class="line"> +----+--------------------+------------+--------+-------------------+---------+---------+-------+------+--------------------------+</span><br><span class="line"> |  1 | PRIMARY            | t3         | ALL    | NULL              | NULL    | NULL    | NULL  | 1000 | Using where              |</span><br><span class="line"> |  2 | DEPENDENT SUBQUERY | t3         | const  | PRIMARY,idx_t3_id | PRIMARY | 4       | const |    1 | Using index              |</span><br><span class="line"> |  3 | DEPENDENT UNION    | t3         | eq_ref | PRIMARY,idx_t3_id | PRIMARY | 4       | func  |    1 | Using where; Using index |</span><br><span class="line"> |NULL | UNION RESULT       | &lt;union2,3&gt; | ALL    | NULL              | NULL    | NULL    | NULL  | NULL |                          |</span><br><span class="line"> +----+--------------------+------------+--------+-------------------+---------+---------+-------+------+--------------------------+</span><br></pre></td></tr></table></figure>
+<p><strong>（5）UNION RESULT</strong></p>
+<p><code>UNION</code>的结果。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from t3 where id=3952602 union all select * from t3 ;</span><br><span class="line"> +----+--------------+------------+-------+-------------------+---------+---------+-------+------+-------+</span><br><span class="line"> | id | select_type  | table      | type  | possible_keys     | key     | key_len | ref   | rows | Extra |</span><br><span class="line"> +----+--------------+------------+-------+-------------------+---------+---------+-------+------+-------+</span><br><span class="line"> |  1 | PRIMARY      | t3         | const | PRIMARY,idx_t3_id | PRIMARY | 4       | const |    1 |       |</span><br><span class="line"> |  2 | UNION        | t3         | ALL   | NULL              | NULL    | NULL    | NULL  | 1000 |       |</span><br><span class="line"> |NULL | UNION RESULT | &lt;union1,2&gt; | ALL   | NULL              | NULL    | NULL    | NULL  | NULL |       |</span><br><span class="line"> +----+--------------+------------+-------+-------------------+---------+---------+-------+------+-------+</span><br></pre></td></tr></table></figure>
+<p><strong>（6）SUBQUERY</strong></p>
+<p>子查询中的第一个<code>SELECT</code>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from t3 where id = (select id from t3 where id=3952602 )  ;</span><br><span class="line"> +----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------------+</span><br><span class="line"> | id | select_type | table | type  | possible_keys     | key     | key_len | ref   | rows | Extra       |</span><br><span class="line"> +----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------------+</span><br><span class="line"> |  1 | PRIMARY     | t3    | const | PRIMARY,idx_t3_id | PRIMARY | 4       | const |    1 |             |</span><br><span class="line"> |  2 | SUBQUERY    | t3    | const | PRIMARY,idx_t3_id | PRIMARY | 4       |       |    1 | Using index |</span><br><span class="line"> +----+-------------+-------+-------+-------------------+---------+---------+-------+------+-------------+</span><br></pre></td></tr></table></figure>
+<p><strong>（7）  DEPENDENT SUBQUERY</strong></p>
+<p>子查询中的第一个<code>SELECT</code>，取决于外面的查询。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select id from t3 where id in (select id from t3 where id=3952602 )  ;</span><br><span class="line"> +----+--------------------+-------+-------+-------------------+---------+---------+-------+------+--------------------------+</span><br><span class="line"> | id | select_type        | table | type  | possible_keys     | key     | key_len | ref   | rows | Extra                    |</span><br><span class="line"> +----+--------------------+-------+-------+-------------------+---------+---------+-------+------+--------------------------+</span><br><span class="line"> |  1 | PRIMARY            | t3    | index | NULL              | PRIMARY | 4       | NULL  | 1000 | Using where; Using index |</span><br><span class="line"> |  2 | DEPENDENT SUBQUERY | t3    | const | PRIMARY,idx_t3_id | PRIMARY | 4       | const |    1 | Using index              |</span><br><span class="line"> +----+--------------------+-------+-------+-------------------+---------+---------+-------+------+--------------------------+</span><br></pre></td></tr></table></figure>
+<p><strong>（8）DERIVED</strong></p>
+<p>派生表的<strong>SELECT</strong>（<strong>FROM</strong>子句的子查询）。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; explain select * from (select * from t3 where id=3952602) a ;</span><br><span class="line"> +----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br><span class="line"> | id | select_type | table      | type   | possible_keys     | key     | key_len | ref  | rows | Extra |</span><br><span class="line"> +----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br><span class="line"> |  1 | PRIMARY     | &lt;derived2&gt; | system | NULL              | NULL    | NULL    | NULL |    1 |       |</span><br><span class="line"> |  2 | DERIVED     | t3         | const  | PRIMARY,idx_t3_id | PRIMARY | 4       |      |    1 |       |</span><br><span class="line"> +----+-------------+------------+--------+-------------------+---------+---------+------+------+-------+</span><br></pre></td></tr></table></figure>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#一、语法"><span class="toc-number">1.</span> <span class="toc-text">一、语法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#二、explain输出解释"><span class="toc-number">2.</span> <span class="toc-text">二、explain输出解释</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#1-id"><span class="toc-number">3.</span> <span class="toc-text">1 id</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-select-type"><span class="toc-number">4.</span> <span class="toc-text">2 select_type</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
