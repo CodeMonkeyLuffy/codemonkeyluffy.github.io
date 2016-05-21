@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>ORM到底是用还是不用？ | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>ORM到底是用还是不用？</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年05月21日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#php" class='tag'>php</a>
+
+
+            
+          </div>
+          <p>ORM即Object/Relation Mapping的简写，一般称作“对象关系映射”，在Web开发中最常出没于和关系型数据库交互的地方。接口、中间件、库、包，你都可以这么称呼它。</p>
+<p>我们可以结合PHP和MySQL，从ORM的四个核心理念来认识它：</p>
+<ul>
+<li>简单：ORM以最基本的形式建模数据。比如ORM会将MySQL的一张表映射成一个PHP类（模型），表的字段就是这个类的成员变量</li>
+<li>精确：ORM使所有的MySQL数据表都按照统一的标准精确地映射成PHP类，使系统在代码层面保持准确统一</li>
+<li>易懂：ORM使数据库结构文档化。比如MySQL数据库就被ORM转换为了PHP程序员可以读懂的PHP类，PHP程序员可以只把注意力放在他擅长的PHP层面（当然能够熟练掌握MySQL更好）</li>
+<li>易用：ORM的避免了不规范、冗余、风格不统一的SQL语句，可以避免很多人为Bug，方便编码风格的统一和后期维护</li>
+</ul>
+<p>接下来再通过一个很基本的例子来说明一下ORM的使用，还以PHP和MySQL为例。</p>
+<p>user这个数据模型是再普遍不过的了。假设我们有一张user数据表，结构如图：</p>
+<p>在OOP中通常我们需要写一个对应的class User来作为user数据表的数据模型:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">// 声明class User</span><br><span class="line">class User&#123;</span><br><span class="line">    $id;</span><br><span class="line">    $name;</span><br><span class="line"></span><br><span class="line">    function create()&#123;/*...*/&#125;</span><br><span class="line">    function load($id)&#123;/*...*/&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 使用class User</span><br><span class="line">$user = new User();</span><br><span class="line">$user-&gt;name = &apos;fancy&apos;;</span><br><span class="line">$user-&gt;create();</span><br></pre></td></tr></table></figure>
+<p>但是通过ORM，我们可以不用去声明class User，可以直接继承ORM提供的工厂类，比如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">// 直接使用！对于熟悉MVC的亲知道这个意义之所在！</span><br><span class="line">$user = new ORM(&apos;user&apos;);  // ORM都有自己的规则，这里直接使用了MySQL的表名</span><br><span class="line">$user-&gt;name = &apos;fancy&apos;;    // MySQL的表的字段就是$user对象的成员变量</span><br><span class="line">$user-&gt;save();            // 掉用ORM提供的接口函数</span><br></pre></td></tr></table></figure>
+<p>ORM一般都针对数据模型提供了一下常见的接口函数，比如：create(), update(), save(), load(), find(), find_all(), where()等，也就是讲sql查询全部封装成了编程语言中的函数，通过函数的链式组合生成最终的SQL语句。</p>
+<p>所以由这些来看，ORM对于敏捷开发和团队合作开发来说，好处是非常非常大的。这里就罗列一下我想到的ORM显著的<strong>优点</strong>：</p>
+<ul>
+<li><p>大大缩短了程序员的编码时间，减少甚至免除了对Model的编码</p>
+</li>
+<li><p>良好的数据库操作接口，使编码难度降低，使团队成员的代码变得简洁易读、风格统一</p>
+</li>
+<li><p>动态的数据表映射，在数据表结构甚至数据库发生改变时，减少了相应的代码修改</p>
+</li>
+<li><p>减少了程序员对数据库的学习成本</p>
+</li>
+<li><p>可以很方便地引入数据缓存之类的附加功能</p>
+</li>
+</ul>
+<p>但是ORM并不是一个完美的东西，它同时也有其自身不可避免的<strong>缺点</strong>：</p>
+<ul>
+<li>自动化进行关系数据库的映射需要消耗系统性能。其实这里的性能消耗还好啦，一般来说都可以忽略之，特别是有cacha存在的时候</li>
+<li>在处理多表联查、where条件复杂之类的查询时，ORM的语法会变得复杂且猥琐</li>
+<li>越是功能强大的ORM越是消耗内存，因为一个ORM Object会带有很多成员变量和成员函数。有一次修复bug时就遇见，使用ORM查询的时候会占用12MB的内存，而使用SQL的查询时只占用了1.7MB……</li>
+</ul>
+<p>ORM就是这么一个让人又爱又恨的东西。回到我们开始的问题：“ORM到底是用还是不用？”。</p>
+<blockquote>
+<p>Fancy个人的观点是：ORM要用！但关键部位不能用！</p>
+</blockquote>
+<p>因为对于一般的Web应用开发来说，使用ORM确实能带来上述的诸多好处，而且在大部分情况下涉及不到ORM的不好的地方。但是在系统里面有大数据量、大运算量、复杂查询的地方，就不要用ORM。ORM的性能问题将给你带来灾难。在这些地方就可以使用纯SQL或者其他简单轻量的DB Helper库了。在详细了解ORM之后，你就可以扬长避短让ORM发挥其最大效用了。</p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
