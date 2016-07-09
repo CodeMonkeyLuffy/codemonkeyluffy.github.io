@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>PHP使用数据库的并发问题 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>PHP使用数据库的并发问题</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年07月09日</time>
+            
+            
+          </div>
+          <p>在并行系统中并发问题永远不可忽视。尽管PHP语言原生没有提供多线程机制，那并不意味着所有的操作都是线程安全的。尤其是在操作诸如订单、支付等业务系统中，更需要注意操作数据库的并发问题。 接下来我通过一个案例分析一下PHP操作数据库时并发问题的处理问题。 </p>
+<p>首先，我们有这样一张数据表：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; select * from counter;</span><br><span class="line">+----+-----+</span><br><span class="line">| id | num |</span><br><span class="line">+----+-----+</span><br><span class="line">|  1 |   0 |</span><br><span class="line">+----+-----+</span><br><span class="line">1 row in set (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p>这段代码模拟了一次业务操作：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">function dummy_business() &#123;</span><br><span class="line">	$conn = mysqli_connect(&apos;127.0.0.1&apos;, &apos;public&apos;, &apos;public&apos;) or die(mysqli_error());</span><br><span class="line">	mysqli_select_db($conn, &apos;test&apos;);</span><br><span class="line">	for ($i = 0; $i &lt; 10000; $i++) &#123;</span><br><span class="line">		mysqli_query($conn, &apos;UPDATE counter SET num = num + 1 WHERE id = 1&apos;);</span><br><span class="line">	&#125;</span><br><span class="line">	mysqli_close($conn);</span><br><span class="line">&#125;</span><br><span class="line">	</span><br><span class="line">for ($i = 0; $i &lt; 10; $i++) &#123;</span><br><span class="line">	$pid = pcntl_fork();</span><br><span class="line">	</span><br><span class="line">	if($pid == -1) &#123;</span><br><span class="line">		die(&apos;can not fork.&apos;);</span><br><span class="line">	&#125; elseif (!$pid) &#123;</span><br><span class="line">		dummy_business();</span><br><span class="line">		echo &apos;quit&apos;.$i.PHP_EOL;</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">?&gt;</span><br></pre></td></tr></table></figure>
+<p>上面的代码模拟了10个用户同时并发执行一项业务的情况，每次业务操作都会使得num的值增加1，每个用户都会执行10000次操作，最终num的值应当是100000。 </p>
+<p>运行这段代码，num的值和我们预期的值是一样的：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; select * from counter;</span><br><span class="line">+----+--------+</span><br><span class="line">| id | num    |</span><br><span class="line">+----+--------+</span><br><span class="line">|  1 | 100000 |</span><br><span class="line">+----+--------+</span><br><span class="line">1 row in set (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p>这里不会出现问题，是因为单条UPDATE语句操作是原子的，无论怎么执行，num的值最终都会是100000。 然而很多情况下，我们业务过程中执行的逻辑，通常是先查询再执行，并不像上面的自增那样简单：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">function dummy_business() &#123;</span><br><span class="line">	$conn = mysqli_connect(&apos;127.0.0.1&apos;, &apos;public&apos;, &apos;public&apos;) or die(mysqli_error());</span><br><span class="line">	mysqli_select_db($conn, &apos;test&apos;);</span><br><span class="line">	for ($i = 0; $i &lt; 10000; $i++) &#123;</span><br><span class="line">		$rs = mysqli_query($conn, &apos;SELECT num FROM counter WHERE id = 1&apos;);</span><br><span class="line">		mysqli_free_result($rs);</span><br><span class="line">		$row = mysqli_fetch_array($rs);</span><br><span class="line">		$num = $row[0];</span><br><span class="line">		mysqli_query($conn, &apos;UPDATE counter SET num = &apos;.$num.&apos; + 1 WHERE id = 1&apos;);</span><br><span class="line">	&#125;</span><br><span class="line">	mysqli_close($conn);</span><br><span class="line">&#125;</span><br><span class="line">	</span><br><span class="line">for ($i = 0; $i &lt; 10; $i++) &#123;</span><br><span class="line">	$pid = pcntl_fork();</span><br><span class="line">	</span><br><span class="line">	if($pid == -1) &#123;</span><br><span class="line">		die(&apos;can not fork.&apos;);</span><br><span class="line">	&#125; elseif (!$pid) &#123;</span><br><span class="line">		dummy_business();</span><br><span class="line">		echo &apos;quit&apos;.$i.PHP_EOL;</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">?&gt;</span><br></pre></td></tr></table></figure>
+<p>改过的脚本，将原来的原子操作UPDATE换成了先查询再更新，再次运行我们发现，由于并发的缘故程序并没有按我们期望的执行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; select * from counter;</span><br><span class="line">+----+------+</span><br><span class="line">| id | num  |</span><br><span class="line">+----+------+</span><br><span class="line">|  1 | 21495|</span><br><span class="line">+----+------+</span><br><span class="line">1 row in set (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p><strong>入门程序员特别容易犯的错误是，认为这是没开启事务引起的。</strong>现在我们给它加上事务：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">function dummy_business() &#123;</span><br><span class="line">	$conn = mysqli_connect(&apos;127.0.0.1&apos;, &apos;public&apos;, &apos;public&apos;) or die(mysqli_error());</span><br><span class="line">	mysqli_select_db($conn, &apos;test&apos;);</span><br><span class="line">	for ($i = 0; $i &lt; 10000; $i++) &#123;</span><br><span class="line">		mysqli_query($conn, &apos;BEGIN&apos;);</span><br><span class="line">		$rs = mysqli_query($conn, &apos;SELECT num FROM counter WHERE id = 1&apos;);</span><br><span class="line">		mysqli_free_result($rs);</span><br><span class="line">		$row = mysqli_fetch_array($rs);</span><br><span class="line">		$num = $row[0];</span><br><span class="line">		mysqli_query($conn, &apos;UPDATE counter SET num = &apos;.$num.&apos; + 1 WHERE id = 1&apos;);</span><br><span class="line">		if(mysqli_errno($conn)) &#123;</span><br><span class="line">			mysqli_query($conn, &apos;ROLLBACK&apos;);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			mysqli_query($conn, &apos;COMMIT&apos;);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	mysqli_close($conn);</span><br><span class="line">&#125;</span><br><span class="line">	</span><br><span class="line">for ($i = 0; $i &lt; 10; $i++) &#123;</span><br><span class="line">	$pid = pcntl_fork();</span><br><span class="line">	</span><br><span class="line">	if($pid == -1) &#123;</span><br><span class="line">		die(&apos;can not fork.&apos;);</span><br><span class="line">	&#125; elseif (!$pid) &#123;</span><br><span class="line">		dummy_business();</span><br><span class="line">		echo &apos;quit&apos;.$i.PHP_EOL;</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">?&gt;</span><br></pre></td></tr></table></figure>
+<p>依然没能解决问题：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; select * from counter;</span><br><span class="line">+----+------+</span><br><span class="line">| id | num  |</span><br><span class="line">+----+------+</span><br><span class="line">|  1 | 16328|</span><br><span class="line">+----+------+</span><br><span class="line">1 row in set (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p><strong>请注意，数据库事务依照不同的事务隔离级别来保证事务的ACID特性，也就是说事务不是一开启就能解决所有并发问题。</strong>通常情况下，这里的并发操作可能带来四种问题：</p>
+<ul>
+<li>更新丢失：一个事务的更新覆盖了另一个事务的更新，这里出现的就是丢失更新的问题。</li>
+<li>脏读：一个事务读取了另一个事务未提交的数据。</li>
+<li>不可重复读：一个事务两次读取同一个数据，两次读取的数据不一致。</li>
+<li>幻象读：一个事务两次读取一个范围的记录，两次读取的记录数不一致。</li>
+</ul>
+<p>通常数据库有四种不同的事务隔离级别：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">隔离级别</th>
+<th style="text-align:right">脏读</th>
+<th style="text-align:center">不可重复读</th>
+<th style="text-align:center">幻读</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Read uncommitted</td>
+<td style="text-align:right">√</td>
+<td style="text-align:center">√</td>
+<td style="text-align:center">√</td>
+</tr>
+<tr>
+<td style="text-align:left">Read committed</td>
+<td style="text-align:right">×</td>
+<td style="text-align:center">√</td>
+<td style="text-align:center">√</td>
+</tr>
+<tr>
+<td style="text-align:left">Repeatable read</td>
+<td style="text-align:right">×</td>
+<td style="text-align:center">×</td>
+<td style="text-align:center">√</td>
+</tr>
+<tr>
+<td style="text-align:left">Serializable</td>
+<td style="text-align:right">×</td>
+<td style="text-align:center">×</td>
+<td style="text-align:center">×</td>
+</tr>
+</tbody>
+</table>
+<p>大多数数据库的默认的事务隔离级别是提交读（Read committed），而MySQL的事务隔离级别是重复读（Repeatable read）。对于丢失更新，只有在序列化（Serializable）级别才可得到彻底解决。不过对于高性能系统而言，使用序列化级别的事务隔离，可能引起死锁或者性能的急剧下降。因此使用悲观锁和乐观锁十分必要。 并发系统中，悲观锁（Pessimistic Locking）和乐观锁（Optimistic Locking）是两种常用的锁：</p>
+<ul>
+<li>悲观锁认为，别人访问正在改变的数据的概率是很高的，因此从数据开始更改时就将数据锁住，直到更改完成才释放。悲观锁通常由数据库实现（使用SELECT…FOR UPDATE语句）。</li>
+<li>乐观锁认为，别人访问正在改变的数据的概率是很低的，因此直到修改完成准备提交所做的的修改到数据库的时候才会将数据锁住，完成更改后释放。</li>
+</ul>
+<p>上面的例子，我们用悲观锁来实现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">function dummy_business() &#123;</span><br><span class="line">	$conn = mysqli_connect(&apos;127.0.0.1&apos;, &apos;public&apos;, &apos;public&apos;) or die(mysqli_error());</span><br><span class="line">	mysqli_select_db($conn, &apos;test&apos;);</span><br><span class="line">	for ($i = 0; $i &lt; 10000; $i++) &#123;</span><br><span class="line">		mysqli_query($conn, &apos;BEGIN&apos;);</span><br><span class="line">		$rs = mysqli_query($conn, &apos;SELECT num FROM counter WHERE id = 1 FOR UPDATE&apos;);</span><br><span class="line">		if($rs == false || mysqli_errno($conn)) &#123;</span><br><span class="line">			// 回滚事务</span><br><span class="line">			mysqli_query($conn, &apos;ROLLBACK&apos;);</span><br><span class="line">			// 重新执行本次操作</span><br><span class="line">			$i--;</span><br><span class="line">			continue;</span><br><span class="line">		&#125;</span><br><span class="line">		mysqli_free_result($rs);</span><br><span class="line">		$row = mysqli_fetch_array($rs);</span><br><span class="line">		$num = $row[0];</span><br><span class="line">		mysqli_query($conn, &apos;UPDATE counter SET num = &apos;.$num.&apos; + 1 WHERE id = 1&apos;);</span><br><span class="line">		if(mysqli_errno($conn)) &#123;</span><br><span class="line">			mysqli_query($conn, &apos;ROLLBACK&apos;);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			mysqli_query($conn, &apos;COMMIT&apos;);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	mysqli_close($conn);</span><br><span class="line">&#125;</span><br><span class="line">	</span><br><span class="line">for ($i = 0; $i &lt; 10; $i++) &#123;</span><br><span class="line">	$pid = pcntl_fork();</span><br><span class="line">	</span><br><span class="line">	if($pid == -1) &#123;</span><br><span class="line">		die(&apos;can not fork.&apos;);</span><br><span class="line">	&#125; elseif (!$pid) &#123;</span><br><span class="line">		dummy_business();</span><br><span class="line">		echo &apos;quit&apos;.$i.PHP_EOL;</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">?&gt;</span><br></pre></td></tr></table></figure>
+<p>可以看到，这次业务以期望的方式正确执行了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; select * from counter;</span><br><span class="line">+----+--------+</span><br><span class="line">| id | num    |</span><br><span class="line">+----+--------+</span><br><span class="line">|  1 | 100000 |</span><br><span class="line">+----+--------+</span><br><span class="line">1 row in set (0.00 sec)</span><br></pre></td></tr></table></figure>
+<p>由于悲观锁在开始读取时即开始锁定，因此在并发访问较大的情况下性能会变差。对MySQL Inodb来说，通过指定明确主键方式查找数据会单行锁定，而查询范围操作或者非主键操作将会锁表。 接下来，我们看一下如何使用乐观锁解决这个问题，首先我们为counter表增加一列字段：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; select * from counter;</span><br><span class="line">+----+------+---------+</span><br><span class="line">| id | num  | version |</span><br><span class="line">+----+------+---------+</span><br><span class="line">|  1 | 1000 |    1000 |</span><br><span class="line">+----+------+---------+</span><br><span class="line">1 row in set (0.01 sec)</span><br></pre></td></tr></table></figure>
+<p>实现方式如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">function dummy_business() &#123;</span><br><span class="line">	$conn = mysqli_connect(&apos;127.0.0.1&apos;, &apos;public&apos;, &apos;public&apos;) or die(mysqli_error());</span><br><span class="line">	mysqli_select_db($conn, &apos;test&apos;);</span><br><span class="line">	for ($i = 0; $i &lt; 10000; $i++) &#123;</span><br><span class="line">		mysqli_query($conn, &apos;BEGIN&apos;);</span><br><span class="line">		$rs = mysqli_query($conn, &apos;SELECT num, version FROM counter WHERE id = 1&apos;);</span><br><span class="line">		mysqli_free_result($rs);</span><br><span class="line">		$row = mysqli_fetch_array($rs);</span><br><span class="line">		$num = $row[0];</span><br><span class="line">		$version = $row[1];</span><br><span class="line">		mysqli_query($conn, &apos;UPDATE counter SET num = &apos;.$num.&apos; + 1, version = version + 1 WHERE id = 1 AND version = &apos;.$version);</span><br><span class="line">		$affectRow = mysqli_affected_rows($conn);</span><br><span class="line">		if($affectRow == 0 || mysqli_errno($conn)) &#123;</span><br><span class="line">			// 回滚事务重新提交</span><br><span class="line">			mysqli_query($conn, &apos;ROLLBACK&apos;);</span><br><span class="line">			$i--;</span><br><span class="line">			continue;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			mysqli_query($conn, &apos;COMMIT&apos;);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	mysqli_close($conn);</span><br><span class="line">&#125;</span><br><span class="line">	</span><br><span class="line">for ($i = 0; $i &lt; 10; $i++) &#123;</span><br><span class="line">	$pid = pcntl_fork();</span><br><span class="line">	</span><br><span class="line">	if($pid == -1) &#123;</span><br><span class="line">		die(&apos;can not fork.&apos;);</span><br><span class="line">	&#125; elseif (!$pid) &#123;</span><br><span class="line">		dummy_business();</span><br><span class="line">		echo &apos;quit&apos;.$i.PHP_EOL;</span><br><span class="line">		break;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">?&gt;</span><br></pre></td></tr></table></figure>
+<p>这次，我们也得到了期望的结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; select * from counter;</span><br><span class="line">+----+--------+---------+</span><br><span class="line">| id | num    | version |</span><br><span class="line">+----+--------+---------+</span><br><span class="line">| 1  | 100000 | 100000  |</span><br><span class="line">+----+--------+---------+</span><br><span class="line">1 row in set (0.01 sec)</span><br></pre></td></tr></table></figure>
+<p>由于乐观锁最终执行的方式相当于原子化UPDATE，因此在性能上要比悲观锁好很多。</p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
