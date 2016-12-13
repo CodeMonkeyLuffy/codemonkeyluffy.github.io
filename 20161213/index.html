@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>如何找出MySQL中正在锁表的语句？ | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>如何找出MySQL中正在锁表的语句？</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年12月13日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#mysql" class='tag'>mysql</a>
+
+
+            
+          </div>
+          <p><strong>MySQL</strong>在每个版本发布时，都会加上一些用以监控内部活动的工具。</p>
+<p>但是，监控内部的<strong>锁情况</strong>的工具一直支持的不好。</p>
+<p>监控锁一个非常<strong>重要和常用</strong>的功能，在这篇文章，我讲阐述如何做到。</p>
+<h4 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h4><p>假设有这样的一种情况：你准备<code>update</code>一个表，但是每次执行update语句的时候，都一直在等待，直到返回信息告诉你等待锁超时。</p>
+<p>你准备<code>update</code>的表已经被某人锁住了，但是你不确定到底是谁。</p>
+<p>这就有点郁闷了，因为<strong>你不知道现用者要用多久，是不是无限期的使用</strong>。</p>
+<p>有时候我不得不隔天再<code>update</code>，这个表可能要被锁上一整天。</p>
+<p>在MySQL中有一个方法可以探窥到锁情况，它会打印出所有<code>innodb</code>的信息：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; SHOW ENGINE INNODB STATUS;</span><br></pre></td></tr></table></figure>
+<h4 id="哪里有死锁？"><a href="#哪里有死锁？" class="headerlink" title="哪里有死锁？"></a>哪里有死锁？</h4><p>查看锁的第一步就是找到死锁的位置。</p>
+<p>上面这个命令会显示关于死锁事务的信息，谁在使用锁，谁在等待锁。</p>
+<p>下面是截取了一段输出，可以重点查看“<code>WAITING FOR THIS LOCK TO BE GRANTED</code>”和“<code>HOLDS THE LOCKS.</code>”部分：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">------------------------</span><br><span class="line">LATEST DETECTED DEADLOCK</span><br><span class="line">------------------------</span><br><span class="line">060731 20:19:58</span><br><span class="line">*** (1) TRANSACTION:</span><br><span class="line">TRANSACTION 0 93698, ACTIVE 2 sec, process no 12767, OS thread id 1141946720 starting index read</span><br><span class="line">mysql tables in use 1, locked 1</span><br><span class="line">LOCK WAIT 4 lock struct(s), heap size 1216</span><br><span class="line">MySQL thread id 3, query id 19 localhost root Updating</span><br><span class="line">update test.innodb_deadlock_maker set a = 0 where a &lt;&gt; 0</span><br><span class="line">*** (1) WAITING FOR THIS LOCK TO BE GRANTED:</span><br><span class="line">RECORD LOCKS space id 0 page no 131120 n bits 72 index `GEN_CLUST_INDEX` of table `test/innodb_deadlock_maker` trx id 0 93698 lock_mode X waiting</span><br><span class="line">Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0</span><br><span class="line"> 0: len 6; hex 000000019000; asc       ;; 1: len 6; hex 000000016e01; asc     n ;; 2: len 7; hex 80000000320110; asc     2  ;; 3: len 4; hex 80000000; asc     ;;</span><br><span class="line"></span><br><span class="line">*** (2) TRANSACTION:</span><br><span class="line">TRANSACTION 0 93699, ACTIVE 2 sec, process no 12767, OS thread id 1142212960 starting index read, thread declared inside InnoDB 500</span><br><span class="line">mysql tables in use 1, locked 1</span><br><span class="line">4 lock struct(s), heap size 1216</span><br><span class="line">MySQL thread id 4, query id 20 localhost root Updating</span><br><span class="line">update test.innodb_deadlock_maker set a = 1 where a &lt;&gt; 1</span><br><span class="line">*** (2) HOLDS THE LOCK(S):</span><br><span class="line">RECORD LOCKS space id 0 page no 131120 n bits 72 index `GEN_CLUST_INDEX` of table `test/innodb_deadlock_maker` trx id 0 93699 lock mode S</span><br><span class="line">Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0</span><br><span class="line"> 0: len 8; hex 73757072656d756d; asc supremum;;</span><br><span class="line"></span><br><span class="line">Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0</span><br><span class="line"> 0: len 6; hex 000000019000; asc       ;; 1: len 6; hex 000000016e01; asc     n ;; 2: len 7; hex 80000000320110; asc     2  ;; 3: len 4; hex 80000000; asc     ;;</span><br><span class="line"></span><br><span class="line">Record lock, heap no 3 PHYSICAL RECORD: n_fields 4; compact format; info bits 0</span><br><span class="line"> 0: len 6; hex 000000019001; asc       ;; 1: len 6; hex 000000016e01; asc     n ;; 2: len 7; hex 8000000032011f; asc     2  ;; 3: len 4; hex 80000001; asc     ;;</span><br><span class="line"></span><br><span class="line">*** (2) WAITING FOR THIS LOCK TO BE GRANTED:</span><br><span class="line">RECORD LOCKS space id 0 page no 131120 n bits 72 index `GEN_CLUST_INDEX` of table `test/innodb_deadlock_maker` trx id 0 93699 lock_mode X waiting</span><br><span class="line">Record lock, heap no 2 PHYSICAL RECORD: n_fields 4; compact format; info bits 0</span><br><span class="line"> 0: len 6; hex 000000019000; asc       ;; 1: len 6; hex 000000016e01; asc     n ;; 2: len 7; hex 80000000320110; asc     2  ;; 3: len 4; hex 80000000; asc     ;;</span><br><span class="line"></span><br><span class="line">*** WE ROLL BACK TRANSACTION (2)</span><br></pre></td></tr></table></figure>
+<p>以“<code>RECORD LOCKS space id 0</code>”开头的一行比较重要，<strong>它指示哪个表的哪个索引被锁住了</strong>。</p>
+<p>这是问题的关键所在，我们要找的就是这里。</p>
+<p>但是还有一个问题，当我们知道有死锁的时候，说明已经太晚了。</p>
+<p>我们不想知道过去谁拥有锁，我们<strong>只关心现在谁拥有锁</strong>。</p>
+<p>但是，上面的死锁信息对于找到当前拥有锁的事务，依然是帮助不多。</p>
+<h4 id="当事务在等待锁"><a href="#当事务在等待锁" class="headerlink" title="当事务在等待锁"></a>当事务在等待锁</h4><p>接下来，我们可以看看事务部分的锁信息，如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">---TRANSACTION 0 93789802, ACTIVE 19 sec, process no 9544, OS thread id 389120018</span><br><span class="line">MySQL thread id 23740, query id 194861248 worker1.office 192.168.0.12 robot</span><br><span class="line">---TRANSACTION 0 93789797, ACTIVE 20 sec, process no 9537, OS thread id 389005359 starting index read</span><br><span class="line">mysql tables in use 1, locked 1</span><br><span class="line">LOCK WAIT 2 lock struct(s), heap size 320</span><br><span class="line">MySQL thread id 23733, query id 194861215 elpaso 192.168.0.31 robot Updating</span><br><span class="line">update test.test set col1 = 4</span><br><span class="line">------- TRX HAS BEEN WAITING 20 SEC FOR THIS LOCK TO BE GRANTED:</span><br><span class="line">RECORD LOCKS space id 0 page no 299998 n bits 200 index `PRIMARY` of table `test/test` trx id 0 93789797 lock_mode X locks rec but not gap waiting</span><br><span class="line">Record lock, heap no 77 PHYSICAL RECORD: n_fields 15; compact format; info bits 0 </span><br><span class="line"> 0: len 4; hex 80474fd6; asc  GO ;; 1: len 6; hex 000005970680; asc       ;; 2: len 7; hex 000017c02b176c; asc     + l;; 3: len 4; hex 80000003; asc     ;; 4: len 8; hex 800000000da0c93a; asc        :;; 5: len 8; hex 800000000eb2ea7e; asc        ~;; 6: len 4; hex c771fe44; asc  q D;; 7: len 4; hex 8000003e; asc    &gt;;; 8: len 8; hex 8000123eb9e5dfd5; asc    &gt;    ;; 9: len 4; hex 8000003a; asc    :;; 10: len 8; hex 8000123eb9e43603; asc    &gt;  6 ;; 11: len 4; hex 80000035; asc    5;; 12: len 8; hex 8000123eb9d6c130; asc    &gt;   0;; 13: len 4; hex 80000033; asc    3;; 14: len 8; hex 8000123eb9c7c853; asc    &gt;   S;;</span><br><span class="line"> </span><br><span class="line">---------------------</span><br><span class="line">---TRANSACTION 0 93789679, ACTIVE 31082 sec, process no 9535, OS thread id 388972583 starting index read, thread declared inside InnoDB 6</span><br><span class="line">mysql tables in use 4, locked 4</span><br><span class="line">11614 lock struct(s), heap size 683328</span><br><span class="line">MySQL thread id 23731, query id 194861117 elpaso 192.168.0.31 robot</span><br></pre></td></tr></table></figure>
+<p>我们看到，第一个事务已经等待锁等了<code>20</code>秒，它同样标有对应的表和索引。</p>
+<p>同样，上面还显示了当前有<code>4</code>个表在使用，<code>4</code>个表被锁住，但是输出信息没有说明具体是哪些表。</p>
+<p>可以看出，这里有一些对我们有用的信息，但是并不多。</p>
+<p>当我们遇到查询在等待锁时，知道在等待什么锁，以及哪些事务正在拥有锁，有时候并没有太大帮助。</p>
+<p>不过比之什么都没有好一点，如果我们只是看到两个事务，那么肯定是一个拥有锁，一个等待锁。</p>
+<p>在上面的输出当中，是否有看到令人毛骨悚然的地方？</p>
+<p>连接<code>23731</code>的事务<code>0 93789771</code>，已经活动了<code>8</code>个半小时？！</p>
+<p>要找到它的拥有者，用<code>processlist</code>，然后用<code>kill</code>杀死这个连接。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mysql&gt; show full processlists;</span><br><span class="line">mysql&gt; kill 1234;</span><br></pre></td></tr></table></figure>
+<p>换句话说，在innodb表遇到表锁，如果幸运的话，我们值看到一个其他的事务带有锁，</p>
+<p>那么，它就极有可能是它锁住了你的请求。</p>
+<h4 id="英文原文"><a href="#英文原文" class="headerlink" title="英文原文"></a>英文原文</h4><ul>
+<li><a href="https://www.xaprb.com/blog/2006/07/31/how-to-analyze-innodb-mysql-locks/" target="_blank" rel="noopener">How to Find Out Who Is Locking a Table in MySQL</a></li>
+</ul>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#哪里有死锁？"><span class="toc-number">2.</span> <span class="toc-text">哪里有死锁？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#当事务在等待锁"><span class="toc-number">3.</span> <span class="toc-text">当事务在等待锁</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#英文原文"><span class="toc-number">4.</span> <span class="toc-text">英文原文</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
