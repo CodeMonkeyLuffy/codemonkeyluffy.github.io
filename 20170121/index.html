@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>env 配置文件加载 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>env 配置文件加载</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年01月21日</time>
+            
+            
+          </div>
+          <ul>
+<li>如图，<code>Illuminate\Foundation\Http\Kernel</code> 类属性 <code>$bootstrappers</code> 中第一个引导启动类</li>
+</ul>
+<p><img src="/1.png" alt=""></p>
+<p><code>Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables</code> 类，从字面意义不难看出，就是有关 <code>env</code> 配置文件加载</p>
+<h4 id="重新走一边流程"><a href="#重新走一边流程" class="headerlink" title="重新走一边流程"></a>重新走一边流程</h4><p>从 <code>Illuminate\Foundation\Application</code> 容器的 <code>bootstrapWith</code> 方法开始：</p>
+<p><img src="/2.png" alt=""></p>
+<p>接下来我们进入 <code>Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables</code> 的 <code>bootstrap</code> 中看一下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">public function bootstrap(Application $app)</span><br><span class="line">&#123;</span><br><span class="line">    if ($app-&gt;configurationIsCached()) &#123;</span><br><span class="line">        return;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    $this-&gt;checkForSpecificEnvironmentFile($app);</span><br><span class="line"></span><br><span class="line">    try &#123;</span><br><span class="line">        (new Dotenv($app-&gt;environmentPath(), $app-&gt;environmentFile()))-&gt;load();  // 核心</span><br><span class="line">    &#125; catch (InvalidPathException $e) &#123;</span><br><span class="line">        //</span><br><span class="line">    &#125; catch (InvalidFileException $e) &#123;</span><br><span class="line">        die(&apos;The environment file is invalid: &apos;.$e-&gt;getMessage());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从这个方法的代码上，不难看出，程序先检测有没有配置缓存，配置缓存就是 <code>bootstrap/cache/config.php</code> ，如果有这个文件，则退出加载，否则继续；接着检测特殊配置文件。</p>
+<p>关于检测特殊配置文件的内容，我在这简单一说，不贴出代码了，这块不是重点：</p>
+<p>检测特殊配置，首先是检测当前执行环境是 <code>web</code> 访问还是 <code>cli</code> 执行，如果是 <code>cli</code> 执行，如果命令行中含有 <code>--env</code> ，则设置配置文件路径，此功能结束；之后，通过 <code>env</code> 函数读取 <code>APP_ENV</code> 键，看是否有返回值，如果没有返回值，则结束检测，若果有返回值，将系统默认的 <code>.env</code> 文件路径与返回值拼接，设置到 <code>env</code> 配置路径中。</p>
+<p>我现在执行的环境，用的的 <code>web</code> 访问，且 <code>env(&#39;APP_ENV&#39;)</code> 无返回值，即 <code>.env</code> 配置文件的路径为系统默认路径</p>
+<p>下面我们看一下 <code>env</code> 配置加载核心代码 <code>(new Dotenv($app-&gt;environmentPath(), $app-&gt;environmentFile()))-&gt;load();</code> 这段代码指，实例化 <code>Dotenv</code> 将 <code>.env</code> 文件所在绝对路径以及文件名当做参数传入，然后调用 <code>load</code> 方法</p>
+<p>如图，实例化 <code>Dotenv</code> 时的构造程序</p>
+<p><img src="/3.png" alt=""></p>
+<p><code>$this-&gt;getFilePath($path, $file)</code> 作用就是将路径和文件名拼接起来，构成完整的 <code>.env</code> 文件的绝对路径；然后实例化 <code>Loader</code> 类，将完整的 <code>.env</code> 文件路径传入，外加一个 <code>true</code>；取得 <code>Loader</code> 类的实例对象后，赋值给当前对象的 <code>loader</code> 属性</p>
+<p>下面我们看一下 <code>Loader</code> 类的构造函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">public function __construct($filePath, $immutable = false)</span><br><span class="line">&#123;</span><br><span class="line">    $this-&gt;filePath = $filePath;</span><br><span class="line">    $this-&gt;immutable = $immutable;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>不难看出，就是一个简单的属性赋值运算。</p>
+<p>好了，整个 <code>Dotenv</code> 类的实例化结束，下面看一下它的 <code>load</code> 方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">public function load()</span><br><span class="line">&#123;</span><br><span class="line">    return $this-&gt;loadData();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>调用了 <code>loadData</code> 方法，继续看</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">protected function loadData($overload = false)</span><br><span class="line">&#123;</span><br><span class="line">    return $this-&gt;loader-&gt;setImmutable(!$overload)-&gt;load();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>调用了 <code>Loader</code> 类下的 <code>setImmutable</code> 方法，并传入 <code>false</code>，看一下这个 <code>setImmutable</code> 方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">public function setImmutable($immutable = false)</span><br><span class="line">&#123;</span><br><span class="line">    $this-&gt;immutable = $immutable;</span><br><span class="line"></span><br><span class="line">    return $this;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>将 <code>false</code> 赋值给 <code>immutable</code> 属性，返回了 <code>Loader</code> 类对象</p>
+<p>那么，我们就看一下 <code>Loader</code> 类对象下的 <code>load</code> 方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">public function load()</span><br><span class="line">&#123;</span><br><span class="line">    $this-&gt;ensureFileIsReadable();</span><br><span class="line"></span><br><span class="line">    $filePath = $this-&gt;filePath;</span><br><span class="line">    $lines = $this-&gt;readLinesFromFile($filePath);</span><br><span class="line">    foreach ($lines as $line) &#123;</span><br><span class="line">        if (!$this-&gt;isComment($line) &amp;&amp; $this-&gt;looksLikeSetter($line)) &#123;</span><br><span class="line">            $this-&gt;setEnvironmentVariable($line);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return $lines;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>呼！走了这么长的路，重要到了。。。</p>
+<ul>
+<li><code>$this-&gt;ensureFileIsReadable();</code> 作用是检测 <code>.env</code> 文件是否存在，是否可读，可以时通过，不可以时，抛出异常，结束程序</li>
+<li><code>$lines = $this-&gt;readLinesFromFile($filePath);</code> 作用是根据 <code>.env</code> 配置文件的换行符，将每一行的字符串叠加到一个索引数组中，并返回改数组，我们看一下这个方法</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">protected function readLinesFromFile($filePath)</span><br><span class="line">&#123;</span><br><span class="line">    // Read file into an array of lines with auto-detected line endings</span><br><span class="line">    $autodetect = ini_get(&apos;auto_detect_line_endings&apos;);</span><br><span class="line">    ini_set(&apos;auto_detect_line_endings&apos;, &apos;1&apos;);</span><br><span class="line">    $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);</span><br><span class="line">    ini_set(&apos;auto_detect_line_endings&apos;, $autodetect);</span><br><span class="line"></span><br><span class="line">    return $lines;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中 PHP 的配置项 <code>auto_detect_line_endings</code> ，看下图</p>
+<p><img src="/4.png" alt=""></p>
+<p>意思是说，当调用 file 方法的时候，自动检测换行符。因为有性能损失，所以，先 ini_get 一下，用完，再设置回去。</p>
+<p>关于 <code>file</code> 方法，<a href="http://php.net/manual/zh/function.file.php" target="_blank" rel="noopener">看这里</a></p>
+<p>最后给你看一下，读取完 <code>.env</code> 文件变量情况</p>
+<p><img src="/5.png" alt=""></p>
+<p>我们回到 <code>load</code> 方法继续</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">foreach ($lines as $line) &#123;</span><br><span class="line">    if (!$this-&gt;isComment($line) &amp;&amp; $this-&gt;looksLikeSetter($line)) &#123;</span><br><span class="line">        $this-&gt;setEnvironmentVariable($line);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这段循环值，将 <code>$lines</code> 数组每个元素进行解析，并赋值到系统环境变量中。</p>
+<p>详解：</p>
+<p><code>!$this-&gt;isComment($line)</code> 指如果当前元素第一个字符有值并且是 <code>#</code> 代表 <code>false</code> ，不执行 <code>setEnvironmentVariable</code> 方法，这相当于是一个注释；具体看代码</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">protected function isComment($line)</span><br><span class="line">&#123;</span><br><span class="line">    $line = ltrim($line);</span><br><span class="line"></span><br><span class="line">    return isset($line[0]) &amp;&amp; $line[0] === &apos;#&apos;;  // 在这里哦，返回 boolean</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>$this-&gt;looksLikeSetter($line)</code> 指在当前元素中有没有 <code>=</code> 号，有则返回 <code>true</code> ，看代码</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">protected function looksLikeSetter($line)</span><br><span class="line">&#123;</span><br><span class="line">    return strpos($line, &apos;=&apos;) !== false;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过上面两个判断，就是说如果当前元素开头不是 <code>#</code>，且含有 <code>=</code> 则，执行 <code>setEnvironmentVariable</code> 方法</p>
+<p>我们看一下 <code>setEnvironmentVariable</code> 方法</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">public function setEnvironmentVariable($name, $value = null)</span><br><span class="line">&#123;</span><br><span class="line">    list($name, $value) = $this-&gt;normaliseEnvironmentVariable($name, $value);</span><br><span class="line"></span><br><span class="line">    $this-&gt;variableNames[] = $name;</span><br><span class="line"></span><br><span class="line">    // Don&apos;t overwrite existing environment variables if we&apos;re immutable</span><br><span class="line">    // Ruby&apos;s dotenv does this with `ENV[key] ||= value`.</span><br><span class="line">    if ($this-&gt;immutable &amp;&amp; $this-&gt;getEnvironmentVariable($name) !== null) &#123;</span><br><span class="line">        return;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // If PHP is running as an Apache module and an existing</span><br><span class="line">    // Apache environment variable exists, overwrite it</span><br><span class="line">    if (function_exists(&apos;apache_getenv&apos;) &amp;&amp; function_exists(&apos;apache_setenv&apos;) &amp;&amp; apache_getenv($name)) &#123;</span><br><span class="line">        apache_setenv($name, $value);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (function_exists(&apos;putenv&apos;)) &#123;</span><br><span class="line">        putenv(&quot;$name=$value&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    $_ENV[$name] = $value;</span><br><span class="line">    $_SERVER[$name] = $value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>未调用 <code>normaliseEnvironmentVariable</code> 前，<code>name</code> 就是 <code>$lines</code> 一个元素（包含键和值的字符串）, <code>value</code> 是 <code>null</code>。调用 <code>normaliseEnvironmentVariable</code> 之后，程序会根据元素中的 <code>=</code> 进行键值分割，分别赋值给 <code>$name</code> 和 <code>$value</code>。</p>
+<p>关于 <code>normaliseEnvironmentVariable</code> 方法，实现了元素以 <code>=</code> 分解键值对功能，识别值中加密串和分解值中后面的 <code>#</code> 注释的能力，识别 键和值 中变量的能力，最终解析出需要的内容，分别赋值给 <code>$name</code> 和 <code>$value</code></p>
+<p>之后检测 PHP 内置是否存在一些函数，有则调用，并将获取的键和值作为参数传入，下面看一下 <code>putenv</code> 函数</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">if (function_exists(&apos;putenv&apos;)) &#123;</span><br><span class="line">    putenv(&quot;$name=$value&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我执行的环境中是有这个函数的，<a href="http://php.net/manual/zh/function.putenv.php" target="_blank" rel="noopener">这是官方对于这个函数讲解</a></p>
+<p>最后，进行了 <code>$_ENV</code> 和 <code>$_SERVER</code> 赋值</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$_ENV[$name] = $value;</span><br><span class="line">$_SERVER[$name] = $value;</span><br></pre></td></tr></table></figure>
+<p>文章末尾贴一张，加载完 <code>.env</code> 的变量图</p>
+<p><img src="/6.png" alt=""></p>
+<h4 id="写在文章尾"><a href="#写在文章尾" class="headerlink" title="写在文章尾"></a>写在文章尾</h4><p>通过上面的学习，我们知道了。 <code>.env</code> 文件是支持注释的，注释的开头是 <code>#</code> ，仅能支持一行，另一行也以 <code>#</code> 开头。还可以下载当前的行尾。如下</p>
+<p><img src="/6.png" alt=""></p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#重新走一边流程"><span class="toc-number">1.</span> <span class="toc-text">重新走一边流程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#写在文章尾"><span class="toc-number">2.</span> <span class="toc-text">写在文章尾</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
