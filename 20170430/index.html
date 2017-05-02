@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>PHP多进程编程初步 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>PHP多进程编程初步</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年04月30日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#php" class='tag'>php</a>
+
+
+            
+          </div>
+          <p>羡慕火影忍者里鸣人的影分身么？没错，PHP程序是可以开动影分身的！想完成任务，又觉得一个进程太慢，那么，试试用多进程来搞吧。这篇文章将会介绍一下PHP多进程的基本需求，如何创建多进程以及基本的信号控制，暂时不会告诉你如何进行进程间通信和信息共享。</p>
+<h4 id="1-准备"><a href="#1-准备" class="headerlink" title="1. 准备"></a>1. 准备</h4><p>在动手之前，请确定你用的不是M$ Windows平台（因为我没有Windows）。Linux / BSD / Unix应该都是没问题的。确认好了工作环境以后一起来看看我们需要的PHP模块是否都有。打开终端输入下面的命令：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ php -m</span><br></pre></td></tr></table></figure>
+<p>这个命令检查并打印当前PHP所有开启的扩展，看一下<code>pcntl</code>和<code>posix</code>是否在输出的列表中。</p>
+<h5 id="1-1-pcntl"><a href="#1-1-pcntl" class="headerlink" title="1.1. pcntl"></a>1.1. pcntl</h5><p>如果找不到<code>pcntl</code>，八成是编译的时候没把这个扩展编译进去。如果你和我一样是编译安装的PHP，那么需要重新编译安装PHP。在配置的时候记得加上<code>--enable-pcntl</code>参数即可。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ cd /path/to/php_source_code_dir </span><br><span class="line">$ ./configure [some other options] --enable-pcntl</span><br><span class="line">$ make &amp;&amp; make install</span><br></pre></td></tr></table></figure>
+<h5 id="1-2-posix"><a href="#1-2-posix" class="headerlink" title="1.2. posix"></a>1.2. posix</h5><p>这货一般默认就会装上，只要你编译的时候没有加上<code>--disable-posix</code>。</p>
+<h4 id="2-预备知识"><a href="#2-预备知识" class="headerlink" title="2. 预备知识"></a>2. 预备知识</h4><p>&emsp;&emsp;在继续之前，你还需要对Linux多进程有一点了解。多进程是咋回事呢？这里可跟火影忍者里的影分身稍微有点不同。首先，鸣人从小长到大，比如16岁，咳。有一天他发动了影分身，分出了5个他。显然，这些分身也是16岁的鸣人而不是刚出生啥也不懂就会哭的婴儿（那叫克隆）。然后，不一样的地方来了：分身们变成了独立的人各自去做各自的事，互相之间不再知道其他分身和原身都做了什么（当然不会像动画片里一样积累经验给原身啦）。除非，他们互相之间有交流，不然，只有16岁之前的事情才是他们共同的记忆。</p>
+<p>&emsp;&emsp;有同学说了，老大你这不坑爹呢么？我又没看过火影忍者！那你去看一遍好了……</p>
+<p>&emsp;&emsp;最后，预备知识完了，就是大致了解一下主进程开出来的子进程是怎么回事。子进程的代码和主进程是完全一样的，还有一部分一样的东西就是直到发动影分身之前执行的所有内容。具体请参见《操作系统》课程。</p>
+<h4 id="3-影分身之术"><a href="#3-影分身之术" class="headerlink" title="3. 影分身之术"></a>3. 影分身之术</h4><p>所以呢，没有点基础知识怎么能理解卷轴里的内容呢？打开卷轴首先看到了一个单词：fork。</p>
+<h5 id="3-1-fork"><a href="#3-1-fork" class="headerlink" title="3.1. fork"></a>3.1. fork</h5><p>叉子？叉子是分岔的，一个变多个嘛！差不多就是这个意思。创建子进程就用这个命令。这里需要用到<code>pcntl_fork()</code>函数。（可以先简单看一下PHP手册关于这个函数的介绍。）创建一个PHP脚本：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$pid = pcntl_fork(); // 一旦调用成功，事情就变得有些不同了</span><br><span class="line">if ($pid == -1) &#123;</span><br><span class="line">    die(&apos;fork failed&apos;);</span><br><span class="line">&#125; else if ($pid == 0) &#123;</span><br><span class="line">&#125; else &#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>pcntl_fork()</code>函数创建一个子进程，子进程和父进程唯一的区别就是PID（进程ID）和PPID（父进程ID）不同。在终端下查看进程用<code>ps</code>命令（问问man看ps怎么用：<code>man ps</code>）。当函数返回值为-1的时候，说明fork失败了。试试在<code>if</code>前面加一句：<code>echo $pid . PHP_EOL;</code>。运行你的脚本，输出可能像下面这样（结果说明子进程和父进程的代码是<strong>相同</strong>的）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">67789 # 这个是父进程打印的</span><br><span class="line">0     # 这个是子进程打印的</span><br></pre></td></tr></table></figure>
+<p><code>pcntl_fork()</code>函数调用成功后，在父进程中会返回子进程的PID，而在子进程中返回的是0。所以，下面直接用<code>if</code>分支来控制父进程和子进程做不同的事。</p>
+<h5 id="3-2-分配任务"><a href="#3-2-分配任务" class="headerlink" title="3.2. 分配任务"></a>3.2. 分配任务</h5><p>然后我们来说说鸣人16岁那次影分身的事儿，给原身和分身分配两个简单的输出任务：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$parentPid = getmypid(); // 这就是传说中16岁之前的记忆</span><br><span class="line">$pid = pcntl_fork(); // 一旦调用成功，事情就变得有些不同了</span><br><span class="line">if ($pid == -1) &#123;</span><br><span class="line">    die(&apos;fork failed&apos;);</span><br><span class="line">&#125; else if ($pid == 0) &#123;</span><br><span class="line">    $mypid = getmypid(); // 用getmypid()函数获取当前进程的PID</span><br><span class="line">    echo &apos;I am child process. My PID is &apos; . $mypid . &apos; and my father&apos;s PID is &apos; . $parentPid . PHP_EOL;</span><br><span class="line">&#125; else &#123;</span><br><span class="line">    echo &apos;Oh my god! I am a father now! My child&apos;s PID is &apos; . $pid . &apos; and mine is &apos; . $parentPid . PHP_EOL;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输出的结果可能是这样：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Oh my god! I am a father now! My child&apos;s PID is 68066 and mine is 68065</span><br><span class="line">I am child process. My PID is 68066 and my father&apos;s PID is 68065</span><br></pre></td></tr></table></figure>
+<p>再强调一下，<code>pcntl_fork()</code>调用成功以后，一个程序变成了两个程序：一个程序得到的<code>$pid</code>变量值是0，它是子进程；另一个程序得到的<code>$pid</code>的值大于0，这个值是子进程的PID，它是父进程。在下面的分支语句中，由于<code>$pid</code>值的不同，运行了不同的代码。再次强调一下：子进程的代码和父进程的是一样的。所以就要通过分支语句给他们分配不同的任务。</p>
+<h5 id="3-3-子进程回收"><a href="#3-3-子进程回收" class="headerlink" title="3.3. 子进程回收"></a>3.3. 子进程回收</h5><p>&emsp;&emsp;刚刚有<code>man ps</code>么？一般我习惯用<code>ps aux</code>加上<code>grep</code>命令来查找运行着的后台进程。其中有一列<code>STAT</code>，标识了每个进程的运行状态。这里，我们关注状态<code>Z</code>：<strong>僵尸（Zombie）</strong>。当子进程比父进程先退出，而父进程没对其做任何处理的时候，子进程将会变成僵尸进程。Oops，又跟火影里的影分身不一样了。鸣人的影分身被干死了以后就自动消失了，但是这里的子进程分身死了话还留着一个空壳在，直到父进程回收它。僵尸进程虽然不占什么内存，但是很碍眼，院子里一堆躺着的僵尸怎么都觉得怪怪的。（别忘了它们还占用着PID）</p>
+<p>&emsp;&emsp;一般来说，在父进程结束之前回收挂掉的子进程就可以了。在<code>pcntl</code>扩展里面有一个<code>pcntl_wait()</code>函数，它会将父进程挂起，直到有一个子进程退出为止。如果有一个子进程变成了僵尸的话，它会立即返回。所有的子进程都要回收，所以多等等也没关系啦！</p>
+<h5 id="3-4-父进程先挂了"><a href="#3-4-父进程先挂了" class="headerlink" title="3.4. 父进程先挂了"></a>3.4. 父进程先挂了</h5><p>如果父进程先挂了怎么办？会发生什么？什么也不会发生，子进程依旧还在运行。但是这个时候，子进程会被交给1号进程，1号进程成为了这些子进程的继父。1号进程会很好地处理这些进程的资源，当它们结束时1号进程会自动回收资源。所以，另一种处理僵尸进程的临时办法是关闭它们的父进程。</p>
+<h4 id="4-信号"><a href="#4-信号" class="headerlink" title="4. 信号"></a>4. 信号</h4><p>一般多进程的事儿讲到上面就完了，可是<strong>信号</strong>在系统中确实是一个非常重要的东西。信号就是信号灯，点亮一个信号灯，程序就会做出反应。这个你一定用过，比如说在终端下运行某个程序，等了半天也没什么反应，可能你会按 Ctrl+C 来关闭这个程序。实际上，这里就是通过键盘向程序发送了一个中断的信号：SIGINT。有时候进程失去响应了还会执行<code>kill [PID]</code>命令，未加任何其他参数的话，程序会接收到一个SIGTERM信号。程序收到上面两个信号的时候，默认都会结束执行，那么是否有可能改变这种默认行为呢？必须能啊！</p>
+<h5 id="4-1-注册信号"><a href="#4-1-注册信号" class="headerlink" title="4.1. 注册信号"></a>4.1. 注册信号</h5><p>人是活的程序也是活的，只不过程序需要遵循人制定的规则来运行。现在开始给信号重新设定规则，这里用到的函数是<code>pcntl_signal()</code>（继续之前为啥不先查查PHP手册呢？）。下面这段程序将给SIGINT重新定义行为，注意看好：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">// 定义一个处理器，接收到SIGINT信号后只输出一行信息</span><br><span class="line">function signalHandler($signal) &#123;</span><br><span class="line">    if ($signal == SIGINT) &#123;</span><br><span class="line">        echo &apos;signal received&apos; . PHP_EOL;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">// 信号注册：当接收到SIGINT信号时，调用signalHandler()函数</span><br><span class="line">pcntl_signal(SIGINT, &apos;signalHandler&apos;);</span><br><span class="line">while (true) &#123;</span><br><span class="line">    sleep(1);</span><br><span class="line">    // do something</span><br><span class="line">    pcntl_signal_dispatch(); // 接收到信号时，调用注册的signalHandler()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>执行一下，随时按下 Ctrl+C 看看会发生什么事。</p>
+<h5 id="4-2-信号分发"><a href="#4-2-信号分发" class="headerlink" title="4.2. 信号分发"></a>4.2. 信号分发</h5><p>说明一下：<code>pcntl_signal()</code>函数仅仅是注册信号和它的处理方法，真正接收到信号并调用其处理方法的是<code>pcntl_signal_dispatch()</code>函数。试试把<code>// do something</code>替换成下面这段代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">for ($i = 0; $i &lt; 1000000; $i++) &#123;</span><br><span class="line">    echo $i . PHP_EOL;</span><br><span class="line">    usleep(100000);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在终端下执行这个脚本，当它不停输出数字的时候尝试按下 Ctrl+C 。看看程序有什么响应？嗯……什么都没有，除了屏幕可能多了个<code>^C</code>以外，程序一直在不停地输出数字。因为程序一直没有执行到<code>pcntl_signal_dispatch()</code>，所以就并没有调用<code>signalHandler()</code>，所以就没有输出<code>signal received</code>。</p>
+<h5 id="4-3-版本问题"><a href="#4-3-版本问题" class="headerlink" title="4.3. 版本问题"></a>4.3. 版本问题</h5><p>如果认真看了PHP文档，会发现<code>pcntl_signal_dispatch()</code>这个函数是PHP 5.3以上才支持的，如果你的PHP版本大于5.3，建议使用这个方法调用信号处理器。5.3以下的版本需要在注册信号之前加一句：<code>declare(ticks = 1);</code>表示每执行一条低级指令，就检查一次信号，如果检测到注册的信号，就调用其信号处理器。想想就挺不爽的，干嘛一直都检查？还是在我们指定的地方检查一下就好。</p>
+<h5 id="4-4-感受僵尸进程"><a href="#4-4-感受僵尸进程" class="headerlink" title="4.4. 感受僵尸进程"></a>4.4. 感受僵尸进程</h5><p>现在我们回到子进程回收的问题上（差点忘了= =”）。当你的一个子进程挂了（或者说是结束了），但是父进程还在运行中并且可能很长一段时间不会退出。一个僵尸进程从此站起来了！这时，保护伞公司（内核）发现它的地盘里出现了一个僵尸，这个僵尸是谁儿子呢？看一下PPID就知道了。然后，内核给PPID这个进程（也就是僵尸进程的父进程）发送一个信号：<strong>SIGCHLD</strong>。然后，你知道怎么在父进程中回收这个子进程了么？提示一下，用<code>pcntl_wait()</code>函数。</p>
+<h5 id="4-5-发送信号"><a href="#4-5-发送信号" class="headerlink" title="4.5. 发送信号"></a>4.5. 发送信号</h5><p>希望刚刚有认真man过<code>kill</code>命令。它其实就是向进程发送信号，在PHP中也可以调用<code>posix_kill()</code>函数来达到相同的效果。有了它就可以在父进程中控制其他子进程的运行了。比如在父进程结束之前关闭所有子进程，那么<code>fork</code>的时候在父进程记录所有子进程的PID，父进程结束之前依次给子进程发送结束信号即可。</p>
+<h4 id="5-实践"><a href="#5-实践" class="headerlink" title="5. 实践"></a>5. 实践</h4><p>PHP的多进程跟C还是挺像的，搞明白了以后用其他语言写的话也大同小异差不多都是这么个情况。如果有空的话，尝试写一个小程序，切身体会一下个中滋味：</p>
+<ol>
+<li><p>16岁的鸣人发送影分身，分出5个分身</p>
+</li>
+<li><p>每个分身随机生存10到30秒，每秒都输出点什么</p>
+</li>
+<li><p>保证原身能感受到分身的结束，然后开动另一个分身，保证最多有5个分身</p>
+</li>
+<li><p>不使用<code>nohup</code>，让原身在终端关闭后依旧能够运行</p>
+</li>
+<li><p>把分身数量（5）写进一个配置文件里，当给原身发送信号（可以考虑用<strong>SIGUSR1</strong>或<strong>SIGUSR2</strong>）时，原身读取配置文件并更新允许的分身最大数量</p>
+</li>
+<li><p>如果分身多了，关闭几个；如果少了，再分出来几个</p>
+</li>
+</ol>
+<h4 id="提示："><a href="#提示：" class="headerlink" title="提示："></a>提示：</h4><ol>
+<li>用<code>while</code>循环保证进程运行，注意<code>sleep</code>以免100%的CPU占用</li>
+<li>运行进程的终端被关闭时，程序会收到一个<strong>SIGHUP</strong>信号</li>
+<li>可以用<code>parse_ini_file()</code>函数解析INI配置文件</li>
+</ol>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-准备"><span class="toc-number">1.</span> <span class="toc-text">1. 准备</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#1-1-pcntl"><span class="toc-number">1.1.</span> <span class="toc-text">1.1. pcntl</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#1-2-posix"><span class="toc-number">1.2.</span> <span class="toc-text">1.2. posix</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-预备知识"><span class="toc-number">2.</span> <span class="toc-text">2. 预备知识</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-影分身之术"><span class="toc-number">3.</span> <span class="toc-text">3. 影分身之术</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#3-1-fork"><span class="toc-number">3.1.</span> <span class="toc-text">3.1. fork</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#3-2-分配任务"><span class="toc-number">3.2.</span> <span class="toc-text">3.2. 分配任务</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#3-3-子进程回收"><span class="toc-number">3.3.</span> <span class="toc-text">3.3. 子进程回收</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#3-4-父进程先挂了"><span class="toc-number">3.4.</span> <span class="toc-text">3.4. 父进程先挂了</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-信号"><span class="toc-number">4.</span> <span class="toc-text">4. 信号</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#4-1-注册信号"><span class="toc-number">4.1.</span> <span class="toc-text">4.1. 注册信号</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#4-2-信号分发"><span class="toc-number">4.2.</span> <span class="toc-text">4.2. 信号分发</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#4-3-版本问题"><span class="toc-number">4.3.</span> <span class="toc-text">4.3. 版本问题</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#4-4-感受僵尸进程"><span class="toc-number">4.4.</span> <span class="toc-text">4.4. 感受僵尸进程</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#4-5-发送信号"><span class="toc-number">4.5.</span> <span class="toc-text">4.5. 发送信号</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-实践"><span class="toc-number">5.</span> <span class="toc-text">5. 实践</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#提示："><span class="toc-number">6.</span> <span class="toc-text">提示：</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
