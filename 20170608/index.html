@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>MySQL悲观锁Laravel的实现 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>MySQL悲观锁Laravel的实现</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年06月08日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#mysql" class='tag'>mysql</a>
+
+
+            
+          </div>
+          <blockquote>
+<p>实现一个小需求，有个test表，表里有个name字段，往表里插入数据，name不能重复，不使用laravel的unique</p>
+</blockquote>
+<p>版本一代码如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">// routes.php</span><br><span class="line">Route::get(&apos;/pessimism&apos;, function () &#123;</span><br><span class="line">        $name = &apos;laravel&apos;;</span><br><span class="line">        $count = DB::table(&apos;test&apos;)-&gt;where(&apos;name&apos;, $name)-&gt;count();</span><br><span class="line">        if ($count &lt;= 0) &#123;</span><br><span class="line">            DB::table(&apos;test&apos;)-&gt;insert([&apos;name&apos; =&gt; $name]);</span><br><span class="line">            echo 1;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            echo 0;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>看起来没毛病，跑起来很顺畅，这里我的host是127.0.0.1:85，自行修改，在终端执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">curl http://127.0.0.1:85/pessimism</span><br><span class="line">// 结果打印1</span><br><span class="line">curl http://127.0.0.1:85/pessimism</span><br><span class="line">// 再次执行打印0</span><br></pre></td></tr></table></figure>
+<p>乍看没问题，但是当并发达到一定数量的时候呢，这里使用Apache的ab test来模拟并发，Ubuntu14.04用户使用命令 <code>sudo apt-get install apache2-utils</code> 安装即可，然后在终端执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ab -n 150 -c 100 http://127.0.0.1:85/pessimism</span><br></pre></td></tr></table></figure>
+<p>命令解释：100为并发数，150为请求数，可以理解为有100个人同时去窗口办理了业务，这样的操作执行了150次（可能比喻不是很恰当）</p>
+<p>返回结果如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">This is ApacheBench, Version 2.3 &lt;$Revision: 1528965 $&gt;</span><br><span class="line">Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/</span><br><span class="line">Licensed to The Apache Software Foundation, http://www.apache.org/</span><br><span class="line"></span><br><span class="line">Benchmarking 127.0.0.1 (be patient)</span><br><span class="line">Completed 100 requests</span><br><span class="line">Finished 160 requests</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Server Software:        nginx</span><br><span class="line">Server Hostname:        127.0.0.1</span><br><span class="line">Server Port:            85</span><br><span class="line"></span><br><span class="line">Document Path:          /begin</span><br><span class="line">Document Length:        1 bytes</span><br><span class="line"></span><br><span class="line">Concurrency Level:      150</span><br><span class="line">Time taken for tests:   21.110 seconds</span><br><span class="line">Complete requests:      160</span><br><span class="line">// 如果返回结果不一样则结果会有大量的Failed requests</span><br><span class="line">// 让成功跟失败返回的HTML的length一致即可，所以示例代码返回1或0</span><br><span class="line">Failed requests:        0</span><br><span class="line">Total transferred:      99113 bytes</span><br><span class="line">HTML transferred:       160 bytes</span><br><span class="line">Requests per second:    7.58 [#/sec] (mean)</span><br><span class="line">Time per request:       19791.002 [ms] (mean)</span><br><span class="line">Time per request:       131.940 [ms] (mean, across all concurrent requests)</span><br><span class="line">Transfer rate:          4.58 [Kbytes/sec] received</span><br><span class="line"></span><br><span class="line">Connection Times (ms)</span><br><span class="line">              min  mean[+/-sd] median   max</span><br><span class="line">Connect:        0   20   6.4     21      26</span><br><span class="line">Processing:   896 10984 5814.6  11055   21078</span><br><span class="line">Waiting:      895 10984 5814.7  11055   21078</span><br><span class="line">Total:        916 11004 5809.7  11076   21093</span><br><span class="line"></span><br><span class="line">Percentage of the requests served within a certain time (ms)</span><br><span class="line">  50%  11076</span><br><span class="line">  66%  13995</span><br><span class="line">  75%  16316</span><br><span class="line">  80%  16987</span><br><span class="line">  90%  18434</span><br><span class="line">  95%  19976</span><br><span class="line">  98%  20478</span><br><span class="line">  99%  21091</span><br><span class="line"> 100%  21093 (longest request)</span><br></pre></td></tr></table></figure>
+<p>执行成功，发现插入了不止一条name为laravel的结果（结果以自己的为准，可能只有1条，或者不止两条，可以修改name值多试几次）</p>
+<p><img src="/1.png" alt=""></p>
+<p>为什么会出现这样的情况？看下图</p>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>小明</th>
+<th>小红</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td>读取name为laravel的count为1</td>
+<td></td>
+</tr>
+<tr>
+<td>T2</td>
+<td></td>
+<td>读取name为laravel的count为1</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>insert一条数据</td>
+<td></td>
+</tr>
+<tr>
+<td>T4</td>
+<td></td>
+<td>insert一条数据（事实上这时候count已经为0）</td>
+</tr>
+</tbody>
+</table>
+<p>结果就是不应该插入的数据插入了</p>
+<p>解决办法是，使用悲观锁，在小明读取数据的时候加锁，小红这时候可以读，但是不能操作修改新增删除，直到小明commit提交事务开锁</p>
+<p>网上对悲观锁的解释是，在读取数据时锁住那几行，其他对这几行的更新需要等到悲观锁结束时才能继续，这里要结合事务使用，打开两个终端窗口</p>
+<p>窗口一</p>
+<p><img src="/2.png" alt=""></p>
+<blockquote>
+<p>注意在select语句结尾那里加上了 <code>for update</code></p>
+</blockquote>
+<p>窗口二</p>
+<p><img src="/3.png" alt=""></p>
+<blockquote>
+<p>窗口一执行commit提交事务</p>
+</blockquote>
+<p><img src="/4.png" alt=""></p>
+<p>窗口二</p>
+<p><img src="/5.png" alt=""></p>
+<p>窗口一解锁了之后窗口二就能继续操作了，窗口一的<strong>select必须包裹在begin跟commit之间才能生效</strong></p>
+<p>修改版本一代码如下</p>
+<p>实现一</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// 使用transaction闭包实现</span><br><span class="line">Route::get(&apos;/pessimism&apos;, function () &#123;</span><br><span class="line">    DB::transaction(function () &#123;</span><br><span class="line">        $name = &apos;php&apos;;</span><br><span class="line">        // 注意加上lockForUpdate，否则无效</span><br><span class="line">        $count = DB::table(&apos;test&apos;)-&gt;where(&apos;name&apos;, $name)-&gt;lockForUpdate()-&gt;count();</span><br><span class="line">        if ($count &lt;= 0) &#123;</span><br><span class="line">            DB::table(&apos;test&apos;)-&gt;insert([&apos;name&apos; =&gt; $name]);</span><br><span class="line">            echo 1;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            echo 0;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>实现二</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Route::get(&apos;/pessimism&apos;, function () &#123;</span><br><span class="line">    DB::beginTransaction();</span><br><span class="line">    $name = &apos;java&apos;;</span><br><span class="line">    $count = DB::table(&apos;test&apos;)-&gt;where(&apos;name&apos;, $name)-&gt;lockForUpdate()-&gt;count();</span><br><span class="line">    if ($count &lt;= 0) &#123;</span><br><span class="line">        DB::table(&apos;test&apos;)-&gt;insert([&apos;name&apos; =&gt; $name]);</span><br><span class="line">        echo 1;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        echo 0;</span><br><span class="line">    &#125;</span><br><span class="line">    DB::commit();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>最后用ab再测试一下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ab -n 150 -c 100 http://127.0.0.1:85/pessimism</span><br></pre></td></tr></table></figure>
+<p>测试多次均未出现重复数据</p>
+<p>试想一下这样的应用场景，抽奖活动只剩下一个奖品n个人同时抽中了这个奖品，如果不做处理很容易出现被多个人领取的情况，当然现实的情况更加复杂，还要结合实际场景做相应的变动修改！！</p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
