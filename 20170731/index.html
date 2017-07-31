@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>PHP实现文件下载断点续传 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>PHP实现文件下载断点续传</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年07月31日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#php" class='tag'>php</a>
+
+
+            
+          </div>
+          <p>&emsp;&emsp;如果我们的网站提供文件下载的服务，那么通常我们都希望下载可以断点续传(Resumable Download)，也就是说用户可以暂停下载，并在未来的某个时间从暂停处继续下载，而不必重新下载整个文件。</p>
+<p>&emsp;&emsp;通常情况下，Web服务器(如Apache)会默认开启对断点续传的支持。因此，如果直接通过Web服务器来提供文件的下载，可以不必做特别的配置，即可享受到断点续传的好处。由于这些文件直接通过Web服务器来提供下载，后端脚本无法对这个下载过程进行控制。这对于仅提供公开、静态文件的网站来说不是问题，但对于需要提供私有、动态文件的网站来说，直接通过Web服务器来提供下载就无法满足需求了。这时，就需要在编写后台脚本程序时，加入对断点续传的支持。</p>
+<p>&emsp;&emsp;本文将以PHP为例，简要介绍实现文件下载断点续传的方法。</p>
+<h4 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h4><p>断点续传的原理还是比较直观的。</p>
+<p>&emsp;&emsp;HTTP协议规定了如何传输某个资源的一部分，而不是全部。比如，有一个文件的大小是1000字节，浏览器可以只请求该文件的前300个字节，或者只请求第500到第1000个字节。通过这种方式，就可以不必在一次请求中传输某个资源的全部内容，而是发起多次请求，每次仅请求其中的一部分内容。等所有这些请求都返回之后，再把得到的内容一块一块的拼接起来得到完整的资源。</p>
+<p>&emsp;&emsp;实现断点续传就是要利用HTTP协议的上述特性。当用户暂停下载的时候，浏览器会记录已经下载到什么位置，当用户在未来某一时间恢复下载时，就可以从上次暂停的位置继续下载，而不必从头开始。</p>
+<h4 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h4><p>由于部分传输不是强制的，服务器可以支持也可以不支持，所以，我们需要在程序中告诉浏览器，它请求的资源是否支持部分传输。这可以通过设置HTTP的 <code>Accept-Ranges</code> 响应头信息来实现。PHP代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">header(&apos;Accept-Ranges: bytes&apos;);</span><br></pre></td></tr></table></figure>
+<p><code>Accept-Ranges: bytes</code> 告诉浏览器，该资源支持以字节为单位的部分传输。这个响应头需要附加在支持部分传输的所有资源上。</p>
+<p>当接受到一个请求时，我们需要从浏览器的请求中提取浏览器具体是在请求资源的哪一个部分。这个信息是通过 <code>Range</code> 请求头来传递的。在PHP中，它被存储在<code>$_SERVER[&#39;HTTP_RANGE&#39;]</code>中。我们需要检查这个变量是否定义了，如果定义了，则使用该值，否则，就将range设为整个资源。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$range = &quot;0-&quot;. ($content_length-1);</span><br><span class="line">if(isset($_SERVER[&apos;HTTP_RANGE&apos;]))&#123;</span><br><span class="line">    $range = $_SERVER[&apos;HTTP_RANGE&apos;];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>接下来，就需要分析 <code>$range</code> 的值，来决定返回资源的哪一部分内容。可能的取值示例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">100-200 // 第100到第200字节</span><br><span class="line">500-    // 第500字节到文件末尾</span><br><span class="line">-1000   // 最后的1000个字节</span><br></pre></td></tr></table></figure>
+<p>这里需要注意，得到一个Range之后，你需要对它的取值进行检验，包括：</p>
+<ol>
+<li>开始位置非负</li>
+<li>结束位置需要大于开始位置</li>
+<li>开始位置需要小于文件长度减一 (因为这里的位置索引是从0开始的)</li>
+<li>若结束位置大于文件长度减一，则需要把它的值设置为文件长度减一</li>
+</ol>
+<p>如果Range的取值不合法，则需要终止程序并告知浏览器：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">header(&apos;HTTP/1.1 416 Requested Range Not Satisfiable&apos;);</span><br></pre></td></tr></table></figure>
+<p>为了保持文章简洁，具体的校验代码这里就不提供了。下面假定你已经校验了Range的取值，并得到了 <code>$start</code> 和 <code>$end</code> 两个变量，分别表示开始位置和结束位置。</p>
+<p>接下来要做的就是把文件的对应部分的内容发送给浏览器。不过要注意的是，这里涉及到需要发送多个HTTP响应头信息，具体如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">header(&apos;HTTP/1.1 206 Partial Content&apos;);</span><br><span class="line">header(&apos;Accept-Ranges: bytes&apos;);</span><br><span class="line">header(&quot;Content-Range: bytes $start-$end/$filesize&quot;);</span><br><span class="line">$length = $end - $start + 1;</span><br><span class="line">header(&quot;Content-Length: $length&quot;);</span><br><span class="line"></span><br><span class="line">/* 输出文件的指定部分 */</span><br></pre></td></tr></table></figure>
+<p>这里的$length需要注意一下，它的取值是本次传输的内容的长度，而不是整个文件的长度。另外需要注意的一点是，这里的HTTP状态码是206，不是200。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>&emsp;&emsp;文件下载的断点续传实际上是利用了HTTP协议中对传输部分文件的支持。而HTTP协议的这一特性不仅可以用于实现断点续传，客户端程序也可以利用它来实现多线程下载。</p>
+<p>&emsp;&emsp;在实现断点续传的过程中，需要注意正确设置各种HTTP头信息。错误的头信息将导致用户下载到的文件损坏，无法使用。</p>
+<h4 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h4><ul>
+<li><a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html" target="_blank" rel="noopener">HTTP 1.1 Spec</a></li>
+<li><a href="http://benramsey.com/blog/2008/05/206-partial-content-and-range-requests/" target="_blank" rel="noopener">HTTP Status: 206 Partial Content and Range Requests</a></li>
+<li><a href="http://www.thomthom.net/blog/2007/09/php-resumable-download-server/" target="_blank" rel="noopener">PHP Resumable Download Server</a></li>
+</ul>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#原理"><span class="toc-number">1.</span> <span class="toc-text">原理</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#实现"><span class="toc-number">2.</span> <span class="toc-text">实现</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-number"></span> <span class="toc-text">总结</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#参考资料"><span class="toc-number">1.</span> <span class="toc-text">参考资料</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
