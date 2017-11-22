@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>Elasticsearch入门 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>Elasticsearch入门</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年11月23日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#Elasticsearch" class='tag'>Elasticsearch</a>
+
+
+            
+          </div>
+          <blockquote>
+<p>Elasticsearch是一个基于Apache Lucene(TM)的开源搜索引擎。无论在开源还是专有领域，Lucene可以被认为是迄今为止最先进、性能最好的、功能最全的搜索引擎库。<br>但是，Lucene只是一个库。想要使用它，你必须使用Java来作为开发语言并将其直接集成到你的应用中，更糟糕的是，Lucene非常复杂，你需要深入了解检索的相关知识来理解它是如何工作的。<br>Elasticsearch也使用Java开发并使用Lucene作为其核心来实现所有索引和搜索的功能，但是它的目的是通过简单的RESTful API来隐藏Lucene的复杂性，从而让全文搜索变得简单。</p>
+</blockquote>
+<p>如果没有搜索引擎，单单凭借Mysql提供的简单搜索功能，无论在性能还是效果上都不尽如人意，继承程序猿的折腾属性，决定将自己的博客插上Elasticsearch的翅膀。</p>
+<h3 id="安装-Oracle-JDK"><a href="#安装-Oracle-JDK" class="headerlink" title="安装 Oracle JDK"></a>安装 Oracle JDK</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install openjdk-8-jdk</span><br></pre></td></tr></table></figure>
+<h3 id="安装-Elasticsearch"><a href="#安装-Elasticsearch" class="headerlink" title="安装 Elasticsearch"></a>安装 Elasticsearch</h3><ul>
+<li>下载</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-2.3.4.deb    </span><br><span class="line">sudo dpkg -i elasticsearch-2.3.4.deb</span><br></pre></td></tr></table></figure>
+<p>目前ElasticSearch的中文分词插件IK最高版本为1.9.4，兼容Elasticsearch的2.3.4版本。</p>
+<ul>
+<li>安装</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo dpkg -i elasticsearch-2.3.4.deb</span><br></pre></td></tr></table></figure>
+<ul>
+<li>开机自启动</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo update-rc.d elasticsearch defaults 95 10</span><br><span class="line">sudo service elasticsearch start</span><br></pre></td></tr></table></figure>
+<ul>
+<li>测试</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl http://localhost:9200</span><br></pre></td></tr></table></figure>
+<p>你如果你看到以下信息，说明你的ElasticSearch已安装成功。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;name&quot; : &quot;Peter Petruski&quot;,</span><br><span class="line">    &quot;cluster_name&quot; : &quot;elasticsearch&quot;,</span><br><span class="line">    &quot;version&quot; : &#123;</span><br><span class="line">        &quot;number&quot; : &quot;2.3.4&quot;,</span><br><span class="line">        &quot;build_hash&quot; : &quot;...(隐藏)&quot;,</span><br><span class="line">        &quot;build_timestamp&quot; : &quot;2017-06-30T11:24:31Z&quot;,</span><br><span class="line">        &quot;build_snapshot&quot; : false,</span><br><span class="line">        &quot;lucene_version&quot; : &quot;5.5.0&quot;</span><br><span class="line">    &#125;,</span><br><span class="line">      &quot;tagline&quot; : &quot;You Know, for Search&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>默认情况下 Elasticsearch 的 RESTful 服务只有本机才能访问，也就是说无法从主机访问虚拟机中的服务。为了方便调试，可以修改 <code>/etc/elasticsearch/config/elasticsearch.yml</code>文件，加入以下两行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">network.bind_host: “0.0.0.0&quot;</span><br><span class="line">network.publish_host: \_non_loopback:ipv4_</span><br></pre></td></tr></table></figure>
+<h3 id="安装中文分词插件-IK"><a href="#安装中文分词插件-IK" class="headerlink" title="安装中文分词插件 IK"></a>安装中文分词插件 IK</h3><p>Elasticsearch原装分词器会简单地拆分每个汉字，没有根据词库来分词，这样的后果就是搜索结果很可能不是你想要的。这里推荐使用<a href="https://github.com/medcl/elasticsearch-analysis-ik/" target="_blank" rel="noopener">elasticsearch-analysis-ik</a>，支持自定义词库。</p>
+<ul>
+<li>下载</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://github.com/medcl/elasticsearch-analysis-ik/archive/v1.9.4.tar.gz</span><br></pre></td></tr></table></figure>
+<ul>
+<li>解压</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tar -xvf elasticsearch-analysis-ik.tar.gz</span><br></pre></td></tr></table></figure>
+<ul>
+<li>使用maven打包该java项目</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cd elasticsearch-analysis-ik-1.9.4</span><br><span class="line">mvn package</span><br></pre></td></tr></table></figure>
+<ul>
+<li>在plugins目录下创建ik目录，并将打包好的IK插件解压到其中</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mkdir /usr/share/elasticsearch/plugins/ik</span><br><span class="line">unzip target/releases/elasticsearch-analysis-ik-1.9.4.zip -d /usr/share/elasticsearch/plugins/ik/</span><br></pre></td></tr></table></figure>
+<p>elasticsearch-analysis-ik 的配置文件在 <code>~/{es_root}/plugins/ik/config/ik/</code> 目录，很多都是词表，直接用文本编辑器打开就可以修改，改完记得保存为 utf-8 格式。</p>
+<p>现在再启动 Elasticsearch 服务，如果看到类似下面这样的信息，说明 IK Analysis 插件已经装好了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">plugins [analysis-ik]</span><br></pre></td></tr></table></figure>
+<h4 id="使用-Elasticsearch"><a href="#使用-Elasticsearch" class="headerlink" title="使用 Elasticsearch"></a>使用 Elasticsearch</h4><p>在使用之前，先大概了解下ES的特点：</p>
+<p>网上通常会将Elasticsearch和传统关系型数据库Mysql做一下类比：</p>
+<p>Elasticsearch不仅仅是全文搜索：</p>
+<ul>
+<li>分布式的实时文件存储，每个字段都被索引并可被搜索</li>
+<li>分布式的实时分析搜索引擎</li>
+<li>可以扩展到上百台服务器，处理PB级结构化或非结构化数据</li>
+</ul>
+<p><strong>分布式</strong>、<strong>实时</strong>、<strong>每个字段</strong>、<strong>PB级</strong>，有点不明觉厉~ 不要慌，刚认识不熟悉很正常，慢慢接触，自然就熟络了，stop getting off track（回归正题），想要详细认识ES，请移步<a href="http://es.xiaoleilu.com/" target="_blank" rel="noopener">Elasticsearch权威指南</a>，接下来就是一步步将ES集成进项目当中：</p>
+<ol>
+<li>使用package</li>
+</ol>
+<p>可以直接使用官方提供的package，由于不想花时间重复造轮子，我直接使用进一步封装的第三方package。在github上有好几个可用的，我选了<a href="https://github.com/elasticquent/Elasticquent" target="_blank" rel="noopener">Elasticquent</a>，部分是因为名字和laravel的Eloquent比较搭（笑…）。Elasticquent提供了简洁好用的trait，直接集成进你的Model里，例如Article：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">use Elasticquent\ElasticquentTrait;</span><br><span class="line"></span><br><span class="line">class Article extends Model</span><br><span class="line">&#123;</span><br><span class="line">    use ElasticquentTrait;</span><br><span class="line">        ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后就可以优雅的使用Elasticsearch了，具体如何安装使用，请参考Elasticquent的说明文档。</p>
+<ol start="2">
+<li>配置Mapping</li>
+</ol>
+<p>关于Mapping（映射），我找到了一篇专门介绍它的文章（传送们），通俗易懂。</p>
+<p>文章中提到，mapping不仅告诉ES一个field中是什么类型的值， 它还告诉ES如何索引数据以及数据是否能被搜索到。</p>
+<p>Got it! 也就是说，如果我们不配置mapping，那ES就不会知道我们是想让它按照IK的分词方式来进行索引咯~</p>
+<p>到这里，不得不说这是一个坑，目前网上的很多资料因为使用的是老版本的ES和IK，所以index和mapping的配置一般都放在es的配置文件yml当中。但我按照那种配置方法，并没有达到预期的分词效果，ES还是简单粗暴的将汉字一个个的切开，屡败屡战折腾两天之后，终于想到试着使用Elasticquent说明文档里在Model中配置mapping的方式，果然，豁然开朗：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -XGET &apos;http://localhost:9200/_analyze?analyzer=ik&amp;pretty=true&amp;text=%e4%bd%a0%e5%a5%bd%e9%ba%a6%e8%82%af%e5%85%88%e7%94%9f&apos;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">&#123;   </span><br><span class="line">    &quot;tokens&quot; : [ &#123;</span><br><span class="line">        &quot;token&quot; : &quot;你好&quot;,</span><br><span class="line">           &quot;start_offset&quot; : 0,</span><br><span class="line">        &quot;end_offset&quot; : 2,</span><br><span class="line">        &quot;type&quot; : &quot;CN_WORD&quot;,</span><br><span class="line">        &quot;position&quot; : 0</span><br><span class="line">    &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;token&quot; : &quot;麦&quot;,</span><br><span class="line">        &quot;start_offset&quot; : 2,</span><br><span class="line">        &quot;end_offset&quot; : 3,</span><br><span class="line">        &quot;type&quot; : &quot;CN_WORD&quot;,</span><br><span class="line">        &quot;position&quot; : 1</span><br><span class="line">    &#125;, &#123;</span><br><span class="line">        &quot;token&quot; : &quot;肯&quot;,</span><br><span class="line">        &quot;start_offset&quot; : 3,</span><br><span class="line">        &quot;end_offset&quot; : 4,</span><br><span class="line">        &quot;type&quot; : &quot;CN_WORD&quot;,</span><br><span class="line">    &quot;position&quot; : 2</span><br><span class="line">    &#125;, &#123;</span><br><span class="line">        &quot;token&quot; : &quot;先生&quot;,</span><br><span class="line">        &quot;start_offset&quot; : 4,</span><br><span class="line">        &quot;end_offset&quot; : 6,</span><br><span class="line">        &quot;type&quot; : &quot;CN_WORD&quot;,</span><br><span class="line">        &quot;position&quot; : 3</span><br><span class="line">    &#125;]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>附上我的mapping配置代码</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">protected $mappingProperties = array(</span><br><span class="line">   &apos;title&apos; =&gt; array(</span><br><span class="line">        &apos;type&apos; =&gt; &apos;string&apos;,</span><br><span class="line">        &apos;analyzer&apos; =&gt; &apos;ik_max_word&apos;</span><br><span class="line">    ),</span><br><span class="line">   &apos;content&apos; =&gt; array(</span><br><span class="line">        &apos;type&apos; =&gt; &apos;string&apos;,</span><br><span class="line">        &apos;analyzer&apos; =&gt; &apos;ik_max_word&apos;</span><br><span class="line">    )</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+<p>可以看出，我告诉ES，我的title和content字段是string类型而且请按照ik的分词方式帮我检索。</p>
+<ol start="3">
+<li>创建索引</li>
+</ol>
+<p>直接使用Elasticquent提供的createIndex方法创建，如果想把现有文档全部索引，可以使用addAllToIndex方法，简单愉快。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Article::createIndex($shards = null, $replicas = null);</span><br><span class="line">Article::addAllToIndex();</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>增删改查</li>
+</ol>
+<p>在你的控制器里的增删改查方法中，将Elasticquent提供的相应操作索引的方法依次加上即可，完成之后，那么你对文档的操作就会同步ES的索引了。具体代码请直接移步<a href="http://blog.csdn.net/lvhong84/article/details/23936697" target="_blank" rel="noopener">Elasticquent</a>开源项目中trait里的代码就好，这里不再贴出。</p>
+<h4 id="写在最后"><a href="#写在最后" class="headerlink" title="写在最后"></a>写在最后</h4><p>在此之前，了解过sphinx，使用过配置好的xunsearch，但真正自己从零开始研究全文搜索引擎还是头一次，中间遇到了许多坑，虽然被坑郁闷，但也感谢这些坑，毕竟越过去就会有快感。写这篇文章一来作为纪念和起点，二来希望能多少对别人有点帮助，因为我也是看过好多相关的文章才一点点将ES搭建完成，在这里感谢那些乐于分享的前辈。</p>
+<p>当然，Elasticsearch功能很强大，各种插件各种配置，这篇文章需要完善的地方还有很多，后期会不断更新，如果文中有错误或者不严谨的地方，欢迎留言交流。</p>
+<p>参考资料</p>
+<ol>
+<li><a href="https://laravel-china.org/docs/elasticsearch-php/6.0" target="_blank" rel="noopener">https://laravel-china.org/docs/elasticsearch-php/6.0</a></li>
+</ol>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#安装-Oracle-JDK"><span class="toc-number">1.</span> <span class="toc-text">安装 Oracle JDK</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#安装-Elasticsearch"><span class="toc-number">2.</span> <span class="toc-text">安装 Elasticsearch</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#安装中文分词插件-IK"><span class="toc-number">3.</span> <span class="toc-text">安装中文分词插件 IK</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#使用-Elasticsearch"><span class="toc-number">3.1.</span> <span class="toc-text">使用 Elasticsearch</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#写在最后"><span class="toc-number">3.2.</span> <span class="toc-text">写在最后</span></a></li></ol></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>
