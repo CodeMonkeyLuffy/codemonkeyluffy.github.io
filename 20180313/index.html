@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>深入剖析 Web 服务器与 PHP 应用之间的通信机制 – 掌握 CGI 和 FastCGI 协议的运行原理 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>深入剖析 Web 服务器与 PHP 应用之间的通信机制 – 掌握 CGI 和 FastCGI 协议的运行原理</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年03月13日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#php" class='tag'>php</a>
+
+
+            
+          </div>
+          <p>身为一名使用 PHP 语言开发后端服务的程序猿，我们每天都和 PHP 以及 Web 服务器产生无数次的亲密接触。得益于它们，我们才能够如此快速的构建出令人陶醉的 Web 产品。</p>
+<p>尽管我们已经和 Web 服务器和 PHP 建立起深厚的友谊，但你知道它们之间为何能够配合的如此默契么？</p>
+<p>这一切都需要从 CGI（Common Gateway Interface：通用网关接口）协议说起。但是请不要对 CGI 协议产生任何的恐惧心理，它并非什么特别复杂的协议，如果你对它不甚了解，可能的原因或许是你还有花一点小心思来学习它。</p>
+<p>所以，你应该明白，现在你应该抽出 20 多分钟仔细的研究一下： Web 服务器与 PHP 应用之间是如何进行通信的这个问题。</p>
+<h4 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h4><p>我们知道 PHP 自 5.4 起为我们内置的 <a href="http://php.net/manual/zh/features.commandline.webserver.php#features.commandline.webserver" target="_blank" rel="noopener">Web 服务器</a>。不过在此之前的版本（或者不使用这个内置服务器时），我们就需要使用其他的 Web 服务器，通常是 Nginx 或者 Apache 这两块 Web 服务器，来部署我们的 PHP 应用。</p>
+<p>这就涉及一个问题，当用户发起一个 HTTP 请求后，我们的 PHP 应用程序在处理这个请求时并没有直接的解析这个 HTTP 协议，而是可以直接从 <strong>\$_GET</strong>、<strong>\$_POST</strong> 和 <strong>\$_SERVER</strong>等全局变量中，获取到用户请求数据和其它系统环境。这究竟又是为何呢？</p>
+<p>要想整明白这个问题，我们就不得不需要整明白一个问题：<strong>CGI 协议</strong>。</p>
+<p>CGI 协议同 HTTP 协议一样是一个「应用层」协议，它的 <strong>功能</strong> 是为了解决 Web 服务器与 PHP 应用（或其他 Web 应用）之间的通信问题。</p>
+<p>既然它是一个「协议」，换言之它与语言无关，即只要是实现类 CGI 协议的应用就能够实现相互的通信。</p>
+<h4 id="深入-CGI-协议"><a href="#深入-CGI-协议" class="headerlink" title="深入 CGI 协议"></a>深入 CGI 协议</h4><p>我们已经知道了 CGI 协议是为了完成 Web 服务器和应用之间进行数据通信这个问题。那么，这一节我们就来看看究竟它们之间是如何进行通信的。</p>
+<p>简单来讲 CGI 协议它描述了 Web 服务器和应用程序之间进行数据传输的格式，并且只要我们的编程语言支持标准输入（STDIN）、标准输出（STDOUT）以及环境变量等处理，你就可以使用它来编写一个 CGI 程序。</p>
+<h4 id="CGI-的运行原理"><a href="#CGI-的运行原理" class="headerlink" title="CGI 的运行原理"></a>CGI 的运行原理</h4><ul>
+<li>当用户访问我们的 Web 应用时，会发起一个 HTTP 请求。最终 Web 服务器接收到这个请求。</li>
+<li>Web 服务器创建一个新的 CGI 进程。在这个进程中，将 HTTP 请求数据已一定格式解析出来，并通过标准输入和环境变量传入到 URL 指定的 CGI 程序（PHP 应用 <a href="http://php.net/manual/zh/reserved.variables.server.php" target="_blank" rel="noopener">$_SERVER</a>）。</li>
+<li>Web 应用程序处理完成后将返回数据写入到标准输出中，Web 服务器进程则从标准输出流中读取到响应，并采用 HTTP 协议返回给用户响应。</li>
+</ul>
+<p>一句话就是 Web 服务器中的 CGI 进程将接收到的 HTTP 请求数据读取到环境变量中，通过标准输入转发给 PHP 的 CGI 程序；当 PHP 程序处理完成后，Web 服务器中的 CGI 进程从标准输出中读取返回数据，并转换回 HTTP 响应消息格式，最终将页面呈献给用户。然后 Web 服务器关闭掉这个 CGI 进程。</p>
+<p>可以说 CGI 协议特别擅长处理 Web 服务器和 Web 应用的通信问题。然而，它有一个严重缺陷，对于每个请求都需要重新 fork 出一个 CGI 进程，处理完成后立即关闭。</p>
+<h4 id="CGI-协议的缺陷"><a href="#CGI-协议的缺陷" class="headerlink" title="CGI 协议的缺陷"></a>CGI 协议的缺陷</h4><ul>
+<li>每次处理用户请求，都需要重新 fork CGI 子进程、销毁 CGI 子进程。</li>
+<li>一系列的 I/O 开销降低了网络的吞吐量，造成了资源的浪费，在大并发时会产生严重的性能问题。</li>
+</ul>
+<h4 id="深入-FastCGI-协议"><a href="#深入-FastCGI-协议" class="headerlink" title="深入 FastCGI 协议"></a>深入 FastCGI 协议</h4><p>从功能上来讲，CGI 协议已经完全能够解决 Web 服务器与 Web 应用之间的数据通信问题。但是由于每个请求都需要重新 fork 出 CGI 子进程导致性能堪忧，所以基于 CGI 协议的基础上做了改进便有了 FastCGI 协议，它是一种常驻型的 CGI 协议。</p>
+<p>本质上来将 FastCGI 和 CGI 协议几乎完全一样，它们都可以从 Web 服务器里接收到相同的数据，不同之处在于采取了不同的通信方式。</p>
+<p>再来回顾一下 CGI 协议每次接收到 HTTP 请求时，都需要经历 fork 出 CGI 子进程、执行处理并销毁 CGI 子进程这一系列工作。</p>
+<p>而 FastCGI 协议采用 <strong>进程间通信（IPC）</strong> 来处理用户的请求，下面我们就来看看它的运行原理。</p>
+<h4 id="FastCGI-协议运行原理"><a href="#FastCGI-协议运行原理" class="headerlink" title="FastCGI 协议运行原理"></a>FastCGI 协议运行原理</h4><ul>
+<li>FastCGI 进程管理器启动时会创建一个 主（Master） 进程和多个 CGI 解释器进程（Worker 进程），然后等待 Web 服务器的连接。</li>
+<li>Web 服务器接收 HTTP 请求后，将 CGI 报文通过 <strong>套接字</strong>（UNIX 或 TCP Socket）进行通信，将环境变量和请求数据写入标准输入,转发到 CGI 解释器进程。</li>
+<li>CGI 解释器进程完成处理后将标准输出和错误信息从同一连接返回给 Web 服务器。</li>
+<li>CGI 解释器进程等待下一个 HTTP 请求的到来。</li>
+</ul>
+<h4 id="为什么是-FastCGI-而非-CGI-协议"><a href="#为什么是-FastCGI-而非-CGI-协议" class="headerlink" title="为什么是 FastCGI 而非 CGI 协议"></a>为什么是 FastCGI 而非 CGI 协议</h4><p>如果仅仅因为工作模式的不同，似乎并没有什么大不了的。并没到非要选择 FastCGI 协议不可的地步。</p>
+<p>然而，对于这个看似微小的差异，但意义非凡，最终的结果是实现出来的 Web 应用架构上的差异。</p>
+<h4 id="CGI-与-FastCGI-架构"><a href="#CGI-与-FastCGI-架构" class="headerlink" title="CGI 与 FastCGI 架构"></a>CGI 与 FastCGI 架构</h4><p>在 CGI 协议中，Web 应用的生命周期完全依赖于 HTTP 请求的声明周期。</p>
+<p>对每个接收到的 HTTP 请求，都需要重启一个 CGI 进程来进行处理，处理完成后必须关闭 CGI 进程，才能达到通知 Web 服务器本次 HTTP 请求处理完成的目的。</p>
+<p>但是在 FastCGI 中完全不一样。</p>
+<p>FastCGI 进程是常驻型的，一旦启动就可以处理所有的 HTTP 请求，而无需直接退出。</p>
+<h4 id="再看-FastCGI-协议"><a href="#再看-FastCGI-协议" class="headerlink" title="再看 FastCGI 协议"></a>再看 FastCGI 协议</h4><p>通过前面的讲解，我们相比已经可以很准确的说出来 <strong>FastCGI 是一种通信协议</strong> 这样的结论。现在，我们就将关注的焦点挪到协议本身，来看看这个协议的定义。</p>
+<p>同 HTTP 协议一样，FastCGI 协议也是有消息头和消息体组成。</p>
+<h4 id="消息头信息"><a href="#消息头信息" class="headerlink" title="消息头信息"></a>消息头信息</h4><p>主要的消息头信息如下：</p>
+<ul>
+<li>Version：用于表示 FastCGI 协议版本号。</li>
+<li>Type：用于标识 FastCGI 消息的类型 - 用于指定处理这个消息的方法。</li>
+<li>RequestID：标识出当前所属的 FastCGI 请求。</li>
+<li>Content Length: 数据包包体所占字节数。</li>
+</ul>
+<h4 id="消息类型定义"><a href="#消息类型定义" class="headerlink" title="消息类型定义"></a>消息类型定义</h4><ul>
+<li><strong>BEGIN_REQUEST</strong>：从 Web 服务器发送到 Web 应用，表示开始处理新的请求。</li>
+<li><strong>ABORT_REQUEST</strong>：从 Web 服务器发送到 Web 应用，表示中止一个处理中的请求。比如，用户在浏览器发起请求后按下浏览器上的「停止按钮」时，会触发这个消息。</li>
+<li><strong>END_REQUEST</strong>：从 Web 应用发送给 Web 服务器，表示该请求处理完成。返回数据包里包含「返回的代码」，它决定请求是否成功处理。</li>
+<li><strong>PARAMS</strong>：「流数据包」，从 Web 服务器发送到 Web 应用。此时可以发送多个数据包。发送结束标识为从 Web 服务器发出一个长度为 <strong>0</strong> 的空包。且 <strong>PARAMS</strong> 中的数据类型和 CGI 协议一致。即我们使用 <strong>\$_SERVER</strong> 获取到的系统环境等。</li>
+<li><strong>STDIN</strong>：「流数据包」，用于 Web 应用从标准输入中读取出用户提交的 POST 数据。</li>
+<li><strong>STDOUT</strong>：「流数据报」，从 Web 应用写入到标准输出中，包含返回给用户的数据。</li>
+</ul>
+<h4 id="Web-服务器和-FastCGI-交互过程"><a href="#Web-服务器和-FastCGI-交互过程" class="headerlink" title="Web 服务器和 FastCGI 交互过程"></a>Web 服务器和 FastCGI 交互过程</h4><ul>
+<li><p>Web 服务器接收用户请求，但最终处理请求由 Web 应用完成。此时，Web 服务器尝试通过套接字（UNIX 或 TCP 套接字，具体使用哪个由 Web 服务器配置决定）连接到 FastCGI 进程。</p>
+</li>
+<li><p>FastCGI 进程查看接收到的连接。选择「接收」或「拒绝」连接。如果是「接收」连接，则从标准输入流中读取数据包。</p>
+</li>
+<li><p>如果 FastCGI 进程在指定时间内没有成功接收到连接，则该请求失败。否则，Web 服务器发送一个包含唯一的 <strong>RequestID</strong> 的 <strong>BEGIN_REQUEST</strong> 类型消息给到 FastCGI 进程。后续所有数据包发送都包含这个 <strong>RequestID</strong>。 然后，Web 服务器发送任意数量的 <strong>PARAMS</strong> 类型消息到 FastCGI 进程。一旦发送完毕，Web 服务器通过发送一个空 <strong>PARAMS</strong> 消息包，然后关闭这个流。 另外，如果用户发送了 POST 数据 Web 服务器会将其写入到 <strong>标准输入（STDIN）</strong> 发送给 FastCGI 进程。当所有 POST 数据发送完成，会发送一个空的 <strong>标准输入（STDIN）</strong> 来关闭这个流。</p>
+</li>
+<li><p>同时，FastCGI 进程接收到 <strong>BEGIN_REQUEST</strong> 类型数据包。它可以通过响应 <strong>END_REQUEST</strong> 来拒绝这个请求。或者接收并处理这个请求。如果接收请求，FastCGI 进程会等待接收所有的 <strong>PARAMS</strong> 和 <strong>标准输入</strong>数据包。 然后，在处理请求并将返回结果写入 <strong>标准输出（STDOUT）</strong> 流。处理完成后，发送一个空的数据包到标准输出来关闭这个流，并且会发送一个 <strong>END_REQUEST</strong> 类型消息通知 Web 服务器，告知它是否发生错误异常。</p>
+</li>
+<li><h3 id="为什么需要在消息头发送-RequestID-这个标识？"><a href="#为什么需要在消息头发送-RequestID-这个标识？" class="headerlink" title="为什么需要在消息头发送 RequestID 这个标识？"></a>为什么需要在消息头发送 RequestID 这个标识？</h3></li>
+</ul>
+<p>如果是每个连接仅处理一个请求，发送 RequestID 则略显多余。</p>
+<p>但是我们的 Web 服务器和 FastCGI 进程之间的连接可能处理多个请求，即一个连接可以处理多个请求。所以才需要采用数据包协议而不是直接使用单个数据流的原因：以实现「多路复用」。</p>
+<p>因此，由于每个数据包都包含唯一的 <strong>RequestID</strong>，所以 Web 服务器才能在一个连接上发送任意数量的请求，并且 FastCGI 进程也能够从一个连接上接收到任意数量的请求数据包。</p>
+<p>另外我们还需要明确一点就是 Web 服务器 与 FastCGI 进程间通信是 <strong>无序的</strong>。即使我们在交互过程中看起来一个请求是有序的，但是我们的 Web 服务器也有可能在同一时间发出几十个 <strong>BEGIN_REQUEST</strong> 类型的数据包，以此类推。</p>
+<h4 id="PHP-FPM"><a href="#PHP-FPM" class="headerlink" title="PHP-FPM"></a>PHP-FPM</h4><p>其实讲解完 CGI 和 FastCGI 协议，基本上我们就已经研究完 「Web 服务器与 PHP 应用之间的通信机制」这个问题了。但是对于我们 PHP 软件工程师来讲，可能还会遇到「什么是 PHP-FPM」及其相关问题。这里我们一并来稍微讲解一下。</p>
+<p>PHP-FPM 是 <a href="http://php.net/manual/zh/install.fpm.php" target="_blank" rel="noopener">FastCGI 进程管理器（PHP FastCGI Process Manager）</a>，用于替换 PHP 内核的 FastCGI 的大部分附加功能（或者说一种替代的 PHP FastCGI 实现），对于高负载网站是非常有用的。</p>
+<p>下面是官网中获取到的它所支持的特性：</p>
+<ul>
+<li>支持平滑停止 / 启动的高级进程管理功能；</li>
+<li>可以工作于不同的 uid/gid/chroot 环境下，并监听不同的端口和使用不同的 php.ini 配置文件（可取代 safe_mode 的设置）；</li>
+<li>stdout 和 stderr 日志记录；</li>
+<li>在发生意外情况的时候能够重新启动并缓存被破坏的 opcode；</li>
+<li>文件上传优化支持；</li>
+<li>“慢日志” - 记录脚本（不仅记录文件名，还记录 PHP backtrace 信息，可以使用 ptrace 或者类似工具读取和分析远程进程的运行数据）运行所导致的异常缓慢；</li>
+<li>fastcgi_finish_request() - 特殊功能：用于在请求完成和刷新数据后，继续在后台执行耗时的工作（录入视频转换、统计处理等）；</li>
+<li>动态／静态子进程产生；</li>
+<li>基本 SAPI 运行状态信息（类似 Apache 的 mod_status）；</li>
+<li>基于 php.ini 的配置文件。</li>
+</ul>
+<p>那么 PHP-FPM 是如何工作的呢？</p>
+<p>PHP-FPM 进程管理器有两种进程组成，一个 Master 进程和多个 Worker 进程。Master 进程负责监听端口，接收来自 Web 服务器的请求，然后指派具体的 Worker 进程处理请求；worker 进程则一般有多个 (依据配置决定进程数)，每个进程内部都嵌入了一个 PHP 解释器，用来执行 PHP 代码。</p>
+<h4 id="Nginx-服务器如何与-FastCGI-协同工作"><a href="#Nginx-服务器如何与-FastCGI-协同工作" class="headerlink" title="Nginx 服务器如何与 FastCGI 协同工作"></a>Nginx 服务器如何与 FastCGI 协同工作</h4><p>Nginx 服务器无法直接与 FastCGI 服务器进行通信，需要启用 <strong>ngx_http_fastcgi_module</strong> 模块进行代理配置，才能将请求发送给 FastCGI 服务。</p>
+<p>其中，包括我们熟知的配置指令：</p>
+<ul>
+<li><a href="http://nginx.org/en/docs/http/ngx_http_fastcgi_module.html#fastcgi_pass" target="_blank" rel="noopener">fastcgi_pass</a> 用于设置 FastCGI 服务器的 IP 地址（TCT 套接字）或 UNIX 套接字。</li>
+<li><a href="http://nginx.org/en/docs/http/ngx_http_fastcgi_module.html#fastcgi_param" target="_blank" rel="noopener">fastcgi_param</a> 设置传入 FastCGI 服务器的参数。</li>
+</ul>
+<p>你可以到 <a href="https://www.nginx.com/resources/wiki/start/topics/examples/phpfcgi/" target="_blank" rel="noopener">PHP FastCGI 实例教程</a> 学习一些基本使用。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>到这里我们基本就学习完 CGI、FastCGI、PHP-FPM以及 Nginx 服务器与 FastCGI 服务通信原理。一句话：</p>
+<p>CGI 和 FastCGI 是一种协议和 HTTP 协议一样位于应用层，与语言无关；PHP-FPM 是一种 FastCGI 协议的实现，能够管理 FastCGI 进程。</p>
+<p>转自:<a href="http://blog.phpzendo.com/?p=430#comment-606" target="_blank" rel="noopener">http://blog.phpzendo.com/?p=430#comment-606</a></p>
+<h4 id="扩展阅读"><a href="#扩展阅读" class="headerlink" title="扩展阅读"></a>扩展阅读</h4><ul>
+<li><a href="https://blog.cuiyongjian.com/fe/tencent-cgi/" target="_blank" rel="noopener">https://blog.cuiyongjian.com/fe/tencent-cgi/</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/20694204" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/20694204</a></li>
+<li><a href="https://stackoverflow.com/questions/2089271/what-is-common-gateway-interface-cgi" target="_blank" rel="noopener">https://stackoverflow.com/questions/2089271/what-is-common-gateway-interface-cgi</a></li>
+<li><a href="https://paper.seebug.org/289/" target="_blank" rel="noopener">https://paper.seebug.org/289/</a></li>
+<li><a href="https://blog.csdn.net/shreck66/article/details/50355729" target="_blank" rel="noopener">https://blog.csdn.net/shreck66/article/details/50355729</a></li>
+<li><a href="http://www.phppan.com/2011/05/php-cgi/" target="_blank" rel="noopener">http://www.phppan.com/2011/05/php-cgi/</a></li>
+<li><a href="https://github.com/pangudashu/php7-internal/blob/master/1/fpm.md" target="_blank" rel="noopener">https://github.com/pangudashu/php7-internal/blob/master/1/fpm.md</a></li>
+<li><a href="https://github.com/YuanLianDu/YLD-with-Php/blob/master/articles/php/php-fpm.md" target="_blank" rel="noopener">https://github.com/YuanLianDu/YLD-with-Php/blob/master/articles/php/php-fpm.md</a></li>
+<li><a href="http://blog.51cto.com/13581826/2093473" target="_blank" rel="noopener">http://blog.51cto.com/13581826/2093473</a></li>
+<li><a href="http://haiyangxu.github.io/posts/2014/2014-05-11-How_web_works_HTTP_and_CGI.html" target="_blank" rel="noopener">http://haiyangxu.github.io/posts/2014/2014-05-11-How_web_works_HTTP_and_CGI.html</a></li>
+<li><a href="https://www.cnblogs.com/xueweihan/p/5319893.html" target="_blank" rel="noopener">https://www.cnblogs.com/xueweihan/p/5319893.html</a></li>
+<li><a href="https://www.zybuluo.com/phper/note/50231" target="_blank" rel="noopener">https://www.zybuluo.com/phper/note/50231</a></li>
+<li><a href="https://www.awaimai.com/371.html" target="_blank" rel="noopener">https://www.awaimai.com/371.html</a></li>
+<li><a href="http://tiankonguse.com/blog/?p=896" target="_blank" rel="noopener">http://tiankonguse.com/blog/?p=896</a></li>
+<li><a href="https://www.digitalocean.com/community/tutorials/understanding-and-implementing-fastcgi-proxying-in-nginx" target="_blank" rel="noopener">https://www.digitalocean.com/community/tutorials/understanding-and-implementing-fastcgi-proxying-in-nginx</a></li>
+<li><a href="http://www.whizkidtech.redprince.net/cgi-bin/tutorial" target="_blank" rel="noopener">http://www.whizkidtech.redprince.net/cgi-bin/tutorial</a></li>
+<li><a href="https://fastcgi-archives.github.io/FastCGI_FAQ.html" target="_blank" rel="noopener">https://fastcgi-archives.github.io/FastCGI_FAQ.html</a></li>
+<li><a href="http://php.net/manual/zh/install.unix.commandline.php" target="_blank" rel="noopener">http://php.net/manual/zh/install.unix.commandline.php</a></li>
+<li><a href="http://php.net/manual/zh/reserved.variables.server.php" target="_blank" rel="noopener">http://php.net/manual/zh/reserved.variables.server.php</a></li>
+<li><a href="http://www.php-internals.com/book/?p=chapt02/02-02-03-fastcgi" target="_blank" rel="noopener">http://www.php-internals.com/book/?p=chapt02/02-02-03-fastcgi</a></li>
+<li><a href="https://www.yanxurui.cc/posts/server/2017-01-04-write-a-cgi-program-in-c-language/" target="_blank" rel="noopener">https://www.yanxurui.cc/posts/server/2017-01-04-write-a-cgi-program-in-c-language/</a></li>
+</ul>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#介绍"><span class="toc-number">1.</span> <span class="toc-text">介绍</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#深入-CGI-协议"><span class="toc-number">2.</span> <span class="toc-text">深入 CGI 协议</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#CGI-的运行原理"><span class="toc-number">3.</span> <span class="toc-text">CGI 的运行原理</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#CGI-协议的缺陷"><span class="toc-number">4.</span> <span class="toc-text">CGI 协议的缺陷</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#深入-FastCGI-协议"><span class="toc-number">5.</span> <span class="toc-text">深入 FastCGI 协议</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#FastCGI-协议运行原理"><span class="toc-number">6.</span> <span class="toc-text">FastCGI 协议运行原理</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#为什么是-FastCGI-而非-CGI-协议"><span class="toc-number">7.</span> <span class="toc-text">为什么是 FastCGI 而非 CGI 协议</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#CGI-与-FastCGI-架构"><span class="toc-number">8.</span> <span class="toc-text">CGI 与 FastCGI 架构</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#再看-FastCGI-协议"><span class="toc-number">9.</span> <span class="toc-text">再看 FastCGI 协议</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#消息头信息"><span class="toc-number">10.</span> <span class="toc-text">消息头信息</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#消息类型定义"><span class="toc-number">11.</span> <span class="toc-text">消息类型定义</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Web-服务器和-FastCGI-交互过程"><span class="toc-number">12.</span> <span class="toc-text">Web 服务器和 FastCGI 交互过程</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#为什么需要在消息头发送-RequestID-这个标识？"><span class="toc-number"></span> <span class="toc-text">为什么需要在消息头发送 RequestID 这个标识？</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#PHP-FPM"><span class="toc-number">1.</span> <span class="toc-text">PHP-FPM</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Nginx-服务器如何与-FastCGI-协同工作"><span class="toc-number">2.</span> <span class="toc-text">Nginx 服务器如何与 FastCGI 协同工作</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#总结"><span class="toc-number">3.</span> <span class="toc-text">总结</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#扩展阅读"><span class="toc-number">4.</span> <span class="toc-text">扩展阅读</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>

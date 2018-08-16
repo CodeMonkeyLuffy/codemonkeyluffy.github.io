@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>Laravel 中使用 MongoDB | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>Laravel 中使用 MongoDB</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年05月08日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#laravel" class='tag'>laravel</a>
+
+
+            
+          </div>
+          <h4 id="安装-Laravel-MongoDB"><a href="#安装-Laravel-MongoDB" class="headerlink" title="安装 Laravel-MongoDB"></a>安装 Laravel-MongoDB</h4><ul>
+<li>推荐组件</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">composer require jenssegers/mongodb</span><br></pre></td></tr></table></figure>
+<ul>
+<li>注册服务</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Jenssegers\Mongodb\MongodbServiceProvider::class,</span><br></pre></td></tr></table></figure>
+<ul>
+<li>添加 Facades</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&apos;Mongo&apos;     =&gt; Jenssegers\Mongodb\MongodbServiceProvider::class,</span><br></pre></td></tr></table></figure>
+<ul>
+<li>修改数据库配置文件 config/database.php 中</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">添加 MongoDB 的数据库的信息:</span><br><span class="line">&apos;mongodb&apos; =&gt; [    </span><br><span class="line">        &apos;driver&apos;   =&gt; &apos;mongodb&apos;,    </span><br><span class="line">        &apos;host&apos;     =&gt; &apos;localhost&apos;,    </span><br><span class="line">        &apos;port&apos;     =&gt; 27017,    </span><br><span class="line">        &apos;database&apos; =&gt; &apos;mydb&apos;,    </span><br><span class="line">        &apos;username&apos; =&gt; &apos;&apos;,    </span><br><span class="line">        &apos;password&apos; =&gt; &apos;&apos;,</span><br><span class="line">],</span><br><span class="line"></span><br><span class="line">&apos;default&apos; =&gt; env(&apos;DB_CONNECTION&apos;, &apos;mysql&apos;),</span><br><span class="line"></span><br><span class="line">改成:</span><br><span class="line"></span><br><span class="line">&apos;default&apos; =&gt; env(&apos;DB_CONNECTION&apos;, &apos;mongodb&apos;),</span><br></pre></td></tr></table></figure>
+<h4 id="使用篇"><a href="#使用篇" class="headerlink" title="使用篇"></a>使用篇</h4><p>查询构造器</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">// 建立一个 UserController.php 控制器</span><br><span class="line">php artisan make:controller UserController</span><br><span class="line">参考代码:</span><br><span class="line">use DB;   //引用数据库</span><br><span class="line"></span><br><span class="line">class MongoController extends Controller&#123;</span><br><span class="line">    pubulic function index()&#123;</span><br><span class="line">        DB::collection(&apos;users&apos;)               //选择使用users集合</span><br><span class="line">              -&gt;insert([                          //插入数据</span><br><span class="line">                      &apos;name&apos;  =&gt;  &apos;tom&apos;, </span><br><span class="line">                      &apos;age&apos;     =&gt;   18</span><br><span class="line">                  ]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    $res = DB::collection(&apos;users&apos;)-&gt;all();  //查询所有数据</span><br><span class="line">    dd($res);                                            //打印数据</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>设置一个访问路由, 然后测试</li>
+</ul>
+<p>如果你没有修改默认的数据库配置(默认还是 MySQL ),那么你在使用 MongoDB 的时候就要指定使用 MongoDB 了</p>
+<ul>
+<li>例如:</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">use DB;   //引用数据库</span><br><span class="line"></span><br><span class="line">class MongoController extends Controller&#123;</span><br><span class="line">    pubulic function index()&#123;</span><br><span class="line">        DB::connection(&apos;mongodb&apos;)       //选择使用mongodb</span><br><span class="line">              -&gt;collection(&apos;users&apos;)           //选择使用users集合</span><br><span class="line">              -&gt;insert([                          //插入数据</span><br><span class="line">                      &apos;name&apos;  =&gt;  &apos;tom&apos;, </span><br><span class="line">                      &apos;age&apos;     =&gt;   18</span><br><span class="line">                  ]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    $res = DB::connection(&apos;mongodb&apos;)-&gt;collection(&apos;users&apos;)-&gt;all();   //查询所有数据</span><br><span class="line">    dd($res);                                            //打印数据</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有关查询构造器的使用和 MySQLi 的方式是一样的,参照 <code>Laravel 文档查询构造器</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&apos;Moloquent&apos; =&gt; &apos;Jenssegers\Mongodb\Eloquent\Model&apos;,</span><br></pre></td></tr></table></figure>
+<ul>
+<li>新建一个 User.php 的 Model 类</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">php artisan make:model User</span><br></pre></td></tr></table></figure>
+<ul>
+<li>参考代码</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">    namespace App;</span><br><span class="line">    use Moloquent;</span><br><span class="line">    use DB;</span><br><span class="line"></span><br><span class="line">    class Users extends Moloquent&#123;    </span><br><span class="line">        protected $connection = &apos;mongodb&apos;;  //库名    </span><br><span class="line">        protected $collection = &apos;users&apos;;     //文档名    </span><br><span class="line">        protected $primaryKey = &apos;_id&apos;;    //设置id    </span><br><span class="line">        protected $fillable = [&apos;id&apos;, &apos;name&apos;, &apos;phone&apos;];  //设置字段白名单</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>在 UserController.php 控制器中这样使用</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">    namespace </span><br><span class="line">    App\Http\Controllers;</span><br><span class="line">    use App\Users;    //引入Users模型</span><br><span class="line"></span><br><span class="line">    class MongoController extends Controller&#123;</span><br><span class="line">        public function index()&#123;</span><br><span class="line">        Users::create([                      //插入数据</span><br><span class="line">            &apos;id&apos;     =&gt;1,</span><br><span class="line">            &apos;name&apos;   =&gt;&apos;tom&apos;,</span><br><span class="line">            &apos;phone&apos;  =&gt;110]);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        dd(Users::all());          //查询并打印数据</span><br></pre></td></tr></table></figure>
+<p>今晚到这 睡觉😴</p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#安装-Laravel-MongoDB"><span class="toc-number">1.</span> <span class="toc-text">安装 Laravel-MongoDB</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#使用篇"><span class="toc-number">2.</span> <span class="toc-text">使用篇</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>consul安装配置 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>consul安装配置</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年05月23日</time>
+            
+            
+          </div>
+          <p>swoft 是基于swoole的微服务框架 目前rpc注册只支持consul</p>
+<p>今天我先来搭建下consul</p>
+<h4 id="consul是什么"><a href="#consul是什么" class="headerlink" title="consul是什么"></a>consul是什么</h4><p>consul包含多个组件，从整体上看可以理解为一个服务发现、配置的工具，包含一下几个特点:</p>
+<ul>
+<li>服务发现(Service Discovery)：客户端通过consul提供服务，其他客户端可以通过consul利用dns或者http发现依赖服务</li>
+<li>健康检查(Health Checking): consul提供任务的健康检查，可以用来操作或者监控集群的健康，也可以在服务发现时去除失效的服务</li>
+<li>键值对存储(Key/Value Store): 存储层级键值对</li>
+<li>多数据中心(Multi Datacenter): consul支持开箱即用的多数据中心</li>
+</ul>
+<h4 id="consul-安装"><a href="#consul-安装" class="headerlink" title="consul 安装"></a>consul 安装</h4><ol>
+<li>下载consul安装包并解压<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">wget https://releases.hashicorp.com/consul/0.6.4/consul_0.6.4_linux_amd64.zip</span><br><span class="line">unzip consul_0.6.4_linux_amd64.zip</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>解压后得到可执行的二进制文件，执行<code>./consul</code>得到</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">usage: consul [--version] [--help] &lt;command&gt; [&lt;args&gt;]</span><br><span class="line"></span><br><span class="line">Available commands are:</span><br><span class="line">    agent          Runs a Consul agent</span><br><span class="line">    configtest     Validate config file</span><br><span class="line">    event          Fire a new event</span><br><span class="line">    exec           Executes a command on Consul nodes</span><br><span class="line">    force-leave    Forces a member of the cluster to enter the &quot;left&quot; state</span><br><span class="line">    info           Provides debugging information for operators</span><br><span class="line">    join           Tell Consul agent to join cluster</span><br><span class="line">    keygen         Generates a new encryption key</span><br><span class="line">    keyring        Manages gossip layer encryption keys</span><br><span class="line">    leave          Gracefully leaves the Consul cluster and shuts down</span><br><span class="line">    lock           Execute a command holding a lock</span><br><span class="line">    maint          Controls node or service maintenance mode</span><br><span class="line">    members        Lists the members of a Consul cluster</span><br><span class="line">    monitor        Stream logs from a Consul agent</span><br><span class="line">    reload         Triggers the agent to reload configuration files</span><br><span class="line">    rtt            Estimates network round trip time between nodes</span><br><span class="line">    version        Prints the Consul version</span><br><span class="line">    watch          Watch for changes in Consul</span><br></pre></td></tr></table></figure>
+<p>表示consul成功安装,同时将<code>consul</code>所在目录配置到<code>path</code> ，例如这里<code>consul</code>在<code>software</code>努力下，进行如下配置</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">vim ~/.bash_profile</span><br><span class="line"></span><br><span class="line">export GOROOT=/software/go</span><br><span class="line">export GOPATH=/root/work</span><br><span class="line">PATH=$PATH:$HOME/bin:$GOROOT/bin:/software</span><br><span class="line"></span><br><span class="line">export PATH</span><br><span class="line"></span><br><span class="line">source ~/.bash_profile</span><br></pre></td></tr></table></figure>
+<h4 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h4><p>首先下载web-ui</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://releases.hashicorp.com/consul/0.6.4/consul_0.6.4_web_ui.zip</span><br></pre></td></tr></table></figure>
+<p>通过下面命令启动consul</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">consul agent -server -bootstrap-expect 1 -data-dir /tmp/consul -advertise 120.76.145.187 -client 120.76.145.187 -ui-dir /software/consul-ui</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>server</code> 表示启动的为consul server ，构建一个consul cluster 一般建议使用3或者5个consul server</li>
+<li><code>bootstrap-expect 1</code> 表示期望的服务节点数目为1</li>
+<li><code>-data-dir</code> 数据目录，如果该文件夹不存在则手工创建,如果在consul发生错误后，建议先清理该目录文件</li>
+<li><code>advertise</code> 设置广播地址,ip可以设置为公网ip</li>
+<li><code>client</code> 设置client访问的地址</li>
+<li><code>ui-dir</code> web控制台目录位置</li>
+</ul>
+<p><strong>注意</strong> 通过<code>advertise</code> <code>client</code> 才能在WAN上访问consul，否则只能在LAN内访问.</p>
+<p>官方给出的快捷启动为 <code>consul agent -dev</code> 如果想简单体验一下可以使用该命令</p>
+<p>启动后访问<code>http://ip:8500/ui</code>得到如下界面</p>
+<p><img src="/1.png" alt=""></p>
+<h4 id="获取基本信息"><a href="#获取基本信息" class="headerlink" title="获取基本信息"></a>获取基本信息</h4><p>获取consul server集群中的成员列表</p>
+<h4 id="使用命令方式"><a href="#使用命令方式" class="headerlink" title="使用命令方式"></a>使用命令方式</h4><ul>
+<li><p>如果以局域网中，直接使用 <code>consul members</code></p>
+</li>
+<li><p>如果是广域网中,使用 <code>consul members --rpc-addr=ip:8400</code><br>得到结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Node          Address              Status  Type    Build  Protocol  DC</span><br><span class="line">iZ94235juoyZ  120.76.145.187:8301  alive   server  0.6.4  2         dc1</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h4 id="使用http接口方式"><a href="#使用http接口方式" class="headerlink" title="使用http接口方式"></a>使用http接口方式</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl ip:8500/v1/catalog/nodes</span><br></pre></td></tr></table></figure>
+<p>返回结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[&#123;&quot;Node&quot;:&quot;iZ94235juoyZ&quot;,&quot;Address&quot;:&quot;110.16.125.137&quot;,&quot;TaggedAddresses&quot;:&#123;&quot;wan&quot;:&quot;110.16.125.137&quot;&#125;,&quot;CreateIndex&quot;:3,&quot;ModifyIndex&quot;:4&#125;]</span><br></pre></td></tr></table></figure>
+<h4 id="通过dns方式"><a href="#通过dns方式" class="headerlink" title="通过dns方式"></a>通过dns方式</h4><p> dig @110.16.125.137 -p 8600 ii92235jsoyZ.node.consul</p>
+<p>返回结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">; &lt;&lt;&gt;&gt; DiG 9.8.2rc1-RedHat-9.8.2-0.47.rc1.el6 &lt;&lt;&gt;&gt; @120.76.145.187 -p 8600 iZ94235juoyZ.node.consul</span><br><span class="line">; (1 server found)</span><br><span class="line">;; global options: +cmd</span><br><span class="line">;; Got answer:</span><br><span class="line">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 625</span><br><span class="line">;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0</span><br><span class="line">;; WARNING: recursion requested but not available</span><br><span class="line"></span><br><span class="line">;; QUESTION SECTION:</span><br><span class="line">;iZ94235juoyZ.node.consul.      IN      A</span><br><span class="line"></span><br><span class="line">;; ANSWER SECTION:</span><br><span class="line">iZ94235juoyZ.node.consul. 0     IN      A       120.76.145.187</span><br><span class="line"></span><br><span class="line">;; Query time: 0 msec</span><br><span class="line">;; SERVER: 120.76.145.187#8600(120.76.145.187)</span><br><span class="line">;; WHEN: Wed Jun  1 21:24:31 2016</span><br><span class="line">;; MSG SIZE  rcvd: 82</span><br></pre></td></tr></table></figure>
+<p>ok ~完成了 参考 <a href="https://github.com/liaokailin" target="_blank" rel="noopener">here</a></p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#consul是什么"><span class="toc-number">1.</span> <span class="toc-text">consul是什么</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#consul-安装"><span class="toc-number">2.</span> <span class="toc-text">consul 安装</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#启动"><span class="toc-number">3.</span> <span class="toc-text">启动</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#获取基本信息"><span class="toc-number">4.</span> <span class="toc-text">获取基本信息</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#使用命令方式"><span class="toc-number">5.</span> <span class="toc-text">使用命令方式</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#使用http接口方式"><span class="toc-number">6.</span> <span class="toc-text">使用http接口方式</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#通过dns方式"><span class="toc-number">7.</span> <span class="toc-text">通过dns方式</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>

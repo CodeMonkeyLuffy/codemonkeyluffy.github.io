@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>php artisan 命令总结 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>php artisan 命令总结</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年04月21日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#laravel" class='tag'>laravel</a>
+
+
+            
+          </div>
+          <h4 id="全局相关"><a href="#全局相关" class="headerlink" title="全局相关"></a>全局相关</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">php artisan：显示详细的命令行帮助信息，同 php artisan list</span><br><span class="line">php artisan –help：显示帮助命令的使用格式，同 php artisan help</span><br><span class="line">php artisan –version：显示当前使用的 Laravel 版本</span><br><span class="line">php artisan changes：列出当前版本相对于上一版本的主要变化</span><br><span class="line">php artisan down：将站点设为维护状态</span><br><span class="line">php artisan up：将站点设回可访问状态</span><br><span class="line">php artisan optimize：优化应用程序性能，生成自动加载文件，且产生聚合编译文件 bootstrap/compiled.php</span><br><span class="line">php artisan dump-autoload：重新生成框架的自动加载文件，相当于 optimize 的再操作</span><br><span class="line">php artisan clear-compiled：清除编译生成的文件，相当于 optimize 的反操作</span><br><span class="line">php artisan migrate：执行数据迁移</span><br><span class="line">php artisan routes：列出当前应用全部的路由规则</span><br><span class="line">php artisan serve：使用 PHP 内置的开发服务器启动应用 【要求 PHP 版本在 5.4 或以上】</span><br><span class="line">php artisan tinker：进入与当前应用环境绑定的 REPL 环境，相当于 Rails 框架的 rails console 命令</span><br><span class="line">php artisan workbench 组织名/包名：这将在应用根目录产生一个名为 workbench 的文件夹，然后按 组织名/包名 的形式生成一个符合 Composer 标准的包结构，并自动安装必要的依赖【需要首先完善好 app/config/workbench.php 文件的内容】</span><br></pre></td></tr></table></figure>
+<h4 id="功能相关"><a href="#功能相关" class="headerlink" title="功能相关"></a>功能相关</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">php artisan cache:clear：清除应用程序缓存</span><br><span class="line">php artisan command:make 命令名：在 app/commands 目录下生成一个名为 命令名.php 的自定义命令文件</span><br><span class="line">php artisan controller:make 控制器名：在 app/controllers 目录下生成一个名为 控制器名.php 的控制器文件</span><br><span class="line">php artisan db:seed：对数据库填充种子数据，以用于测试</span><br><span class="line">php artisan key:generate：生成一个随机的 key，并自动更新到 app/config/app.ph 的 key 键值对</span><br><span class="line">php artisan migrate:install：初始化迁移数据表</span><br><span class="line">php artisan migrate:make 迁移名：这将在 app/database/migrations 目录下生成一个名为 时间+迁移名.php 的数据迁移文件，并自动执行一次 php artisan dump-autoload 命令</span><br><span class="line">php artisan migrate:refresh：重置并重新执行所有的数据迁移</span><br><span class="line">php artisan migrate:reset：回滚所有的数据迁移</span><br><span class="line">php artisan migrate:rollback：回滚最近一次数据迁移</span><br><span class="line">php artisan session:table：生成一个用于 session 的数据迁移文件</span><br></pre></td></tr></table></figure>
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#全局相关"><span class="toc-number">1.</span> <span class="toc-text">全局相关</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#功能相关"><span class="toc-number">2.</span> <span class="toc-text">功能相关</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>Laravel编写MySQL数据库定时备份计划 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>Laravel编写MySQL数据库定时备份计划</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年06月16日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#laravel" class='tag'>laravel</a>
+
+
+            
+          </div>
+          <h4 id="导出命令"><a href="#导出命令" class="headerlink" title="导出命令"></a>导出命令</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mysqldump -u[user] -p[pass] [db] &gt; [file_path]</span><br></pre></td></tr></table></figure>
+<p>正如你所看到的那样，我们需要传入用户名、密码和需要导出的 DB，然后将输出重定向到指定的文件。食用简单方便，功效显著。</p>
+<p>将这个命令通过使用 artisan 命令进行封装，使其更易于运行和可加入计划任务。</p>
+<h4 id="Artiasn-控制台接口热身"><a href="#Artiasn-控制台接口热身" class="headerlink" title="Artiasn 控制台接口热身"></a>Artiasn 控制台接口热身</h4><p>通过使用 artisan 控制台（console）集成 shell 命令的一个重要出发点是，能够一次编写到处运行。我们要做的是配置并使用这些配置。这意味着，一旦有参数被修改，我们不需要通过命令本身进行调整。接下来，我们可以来创建这个控制台命令。</p>
+<p>通过运行 <strong>php artisan make:comman</strong> 命令来创建一个自定义命令。这里我们的命令命名为 <strong>BackupDatabase</strong>。当创建完你的命令后，Laravel 会自动的将命令注册到系统中。你需要做的，仅仅是去定义命令的签名（signature）。</p>
+<p>让我们来预览一下这个命令文件；稍后会详细解释它是如何运行的：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line"></span><br><span class="line">namespace App\Console\Commands;</span><br><span class="line"></span><br><span class="line">use Illuminate\Console\Command;</span><br><span class="line">use Symfony\Component\Process\Process;</span><br><span class="line">use Symfony\Component\Process\Exception\ProcessFailedException;</span><br><span class="line"></span><br><span class="line">class BackupDatabase extends Command</span><br><span class="line">&#123;</span><br><span class="line">    protected $signature = &apos;db:backup&apos;;</span><br><span class="line"></span><br><span class="line">    protected $description = &apos;Backup the database&apos;;</span><br><span class="line"></span><br><span class="line">    protected $process;</span><br><span class="line"></span><br><span class="line">    public function __construct()</span><br><span class="line">    &#123;</span><br><span class="line">        parent::__construct();</span><br><span class="line"></span><br><span class="line">        $this-&gt;process = new Process(sprintf(</span><br><span class="line">            &apos;mysqldump -u%s -p%s %s &gt; %s&apos;,</span><br><span class="line">            config(&apos;database.connections.mysql.username&apos;),</span><br><span class="line">            config(&apos;database.connections.mysql.password&apos;),</span><br><span class="line">            config(&apos;database.connections.mysql.database&apos;),</span><br><span class="line">            storage_path(&apos;backups/backup.sql&apos;)</span><br><span class="line">        ));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public function handle()</span><br><span class="line">    &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            $this-&gt;process-&gt;mustRun();</span><br><span class="line"></span><br><span class="line">            $this-&gt;info(&apos;The backup has been proceed successfully.&apos;);</span><br><span class="line">        &#125; catch (ProcessFailedException $exception) &#123;</span><br><span class="line">            $this-&gt;error(&apos;The backup process has been failed.&apos;);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>你也看到了，我们的命令签名为 <strong>db:backup</strong>。由于 Laravel 已经有了 <strong>db</strong> 命令空间，这样命令更加清晰命令。</p>
+<p>在构造函数中，我们实例化一个新的 <strong>Symfony\Component\Process\Process</strong> 实例。原因是这里我们需要使用 Symfony 的 Process 组件 - 而不是简单的调用 <strong>shell_exec</strong> 函数。这个组件提供了很多好赞的特性。比如，如果进程失败，我们可以抛出异常，然后有效处理异常。</p>
+<p>我们将 shell 命令和所需的参数传入到 <strong>sprintf()</strong> 函数中，它会将占位符替换成实际的参数。在处理完 process 实例后，我们可以进行下一步 <strong>handle)(</strong> 方法的处理。</p>
+<p>在 handle 方法里，我们有个一 <strong>try-catch</strong> 代码块。首先，我们调用 <strong>mustRun()</strong> 方法，如果没有错误，我们向控制台中输出绿色的信息；否则，抛出 <strong>ProcessFailedException</strong> 异常，并在 catch 代码块中捕获，并向控制台中输出 error 信息。</p>
+<p>接下来呢？如果我们在控制台执行 <strong>php artisan db:backup</strong> 命令，我们就会到此处数据库然后将其保存到 <strong>storage/backups/backup.sql</strong> 文件。运行良好，不过，我们还有一些工作要做，就是编写计划任务。</p>
+<hr>
+<p>####编写备份任务的计划任务</p>
+<p>首先，在 Laravel 中能够轻松创建计划任务。它内置提供了既简单又支持链式操作的定义任务的 API 接口。在继续本文阅读之前，强烈建议阅读 <a href="https://laravel-china.org/docs/laravel/5.6/scheduling" target="_blank" rel="noopener">它的文档</a> <a href="https://laravel-china.org/docs/laravel/5.6/scheduling/1396" target="_blank" rel="noopener">中译</a>。</p>
+<p>然后，进入到 <strong>Console/Kernel.php</strong> 文件看看 <strong>schedule()</strong> 函数。我们可以定义任务和任务执行周期。比如，我们希望在 <strong>每周一的 23:00</strong> 运行计划，它的编码如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">protected function schedule(Schedule $schedule)</span><br><span class="line">&#123;</span><br><span class="line">    $schedule-&gt;command(&apos;db:backup&apos;)-&gt;mondays()-&gt;at(&apos;23:00&apos;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>是不是很简单？更棒的是，你可以在这里定义任意多个命令。调度器（scheduler）会在指定的时间分别处理这些任务。</p>
+<p>若要运行这个调度器，我们需要执行 <strong>php artisan schedule:run</strong> 命令，然后它会触发所有需要运行的命令。这很棒，我们仅需一行命令就可以在指定的时间触发对应的任意命令。</p>
+<p>如果你不想自己写 可以使用这个  (<a href="https://github.com/spatie/laravel-backup" target="_blank" rel="noopener">https://github.com/spatie/laravel-backup</a>) 扩展</p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#导出命令"><span class="toc-number">1.</span> <span class="toc-text">导出命令</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Artiasn-控制台接口热身"><span class="toc-number">2.</span> <span class="toc-text">Artiasn 控制台接口热身</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>

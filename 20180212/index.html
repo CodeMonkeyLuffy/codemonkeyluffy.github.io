@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>PHP7 serialize_precision 配置不当导致 json_encode() 浮点小数溢出错误 | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>PHP7 serialize_precision 配置不当导致 json_encode() 浮点小数溢出错误</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年02月12日</time>
+            
+            
+          </div>
+          <p>建议使用默认值 serialize_precision = -1 即可<br>参考: <a href="https://wiki.php.net/rfc/precise_float_value" target="_blank" rel="noopener">https://wiki.php.net/rfc/precise_float_value</a> </p>
+<p>事情是这样的,项目里发现一个奇怪的现象,json_encode一个带浮点价格的数据, 出现溢出, 比如:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">echo json_encode(277.2);</span><br><span class="line">// 输出结果为: 277.199999999999989</span><br></pre></td></tr></table></figure>
+<p>这明显是不能接受的, 数据虽然很接近, 但毕竟已经变更了<br>下意识地认为这是php的一个bug, 不能准确地json序列化一个浮点小数<br>这个问题google了半天竟然也无果, 然后我跟同事说, 你们json_encode数据里有小数的时候, 记得先number_format()转化成字符串.</p>
+<p>自己又写了个fix方法, 遍历数据, 把is_float()的数据都用number_format()转化了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function json_encode_pre($d, $depth=128, $level=0)&#123;</span><br><span class="line">    if($level&gt;$depth) return $d;</span><br><span class="line">    if(is_array($d))&#123;</span><br><span class="line">        foreach ($d as $i =&gt; $v) &#123; $d[$i] = json_encode_pre($v, $depth, $level+1); &#125;</span><br><span class="line">        return $d;</span><br><span class="line">    &#125;</span><br><span class="line">    if(is_float($d))&#123;</span><br><span class="line">        # 测试发现number_format有效数字低于18(保守取16)时,不会溢出</span><br><span class="line">        $p = 16 - strlen(intval($d));</span><br><span class="line">        $f = number_format($d, $p);</span><br><span class="line">        if($p&gt;1)&#123; $f = preg_replace(&apos;/0+$/&apos;,&apos;&apos;, $d); &#125;</span><br><span class="line">        return $d;</span><br><span class="line">    &#125;</span><br><span class="line">    return $d;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">echo number_format(277.2, 14); // 当18位有效数字处理(277.2已有4位有效数字)</span><br><span class="line">// 277.199999999999989</span><br><span class="line">echo number_format(277.2, 12); // 当16位</span><br><span class="line">// 277.2000000000000</span><br><span class="line">echo json_encode(json_encode_pre(277.2));</span><br><span class="line">// &quot;277.2&quot;</span><br></pre></td></tr></table></figure>
+<p>看到这结果时, 便猜测是有效数字位数的问题导致了溢出, PHP怎么会有这么蠢的设计呢?这是我当时的想法.</p>
+<p>然后想着是不是能从源码下手, 于是查了下php源码, 发现这段代码:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">static inline void php_json_encode_double(smart_str *buf, double d, int options) /* &#123;&#123;&#123; */</span><br><span class="line">&#123;</span><br><span class="line">    size_t len;</span><br><span class="line">    char num[PHP_DOUBLE_MAX_LENGTH];</span><br><span class="line"></span><br><span class="line">    php_gcvt(d, (int)PG(serialize_precision), &apos;.&apos;, &apos;e&apos;, num);</span><br><span class="line">    len = strlen(num);</span><br><span class="line">    if (options &amp; PHP_JSON_PRESERVE_ZERO_FRACTION &amp;&amp; strchr(num, &apos;.&apos;) == NULL &amp;&amp; len &lt; PHP_DOUBLE_MAX_LENGTH - 2) &#123;</span><br><span class="line">        num[len++] = &apos;.&apos;;</span><br><span class="line">        num[len++] = &apos;0&apos;;</span><br><span class="line">        num[len] = &apos;\0&apos;;</span><br><span class="line">    &#125;</span><br><span class="line">    smart_str_appendl(buf, num, len);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>是的, 竟然发现了配置项serialize_precision, 这个配置我当初的理解是serialize()方法用的, 而我当初尝试修改过配置项precision, 然并卵, 原来json_encode会用到serialize_precision, 于是修改php.ini, 把它设为16, 原来是17还是18忘了.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">echo json_encode(277.2);</span><br><span class="line">// 输出结果为: 277.2</span><br></pre></td></tr></table></figure>
+<p>如果你想重现我的问题, 很简单, 把serialize_precision设为20或更大, 至于这个有效数字最大值是多少才不会溢出, 我还不知道跟什么有关系, 希望能有大神指点了.<br>我是通过改配置数值, 出现溢出的值再减去2来用的.</p>
+<p>附上配置项说明, 从官方说明上看, 很难想像是跟json_encode是有关系的.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">; php.ini</span><br><span class="line"></span><br><span class="line">; When floats &amp; doubles are serialized store serialize_precision significant</span><br><span class="line">; digits after the floating point. The default value ensures that when floats</span><br><span class="line">; are decoded with unserialize, the data will remain the same.</span><br><span class="line">serialize_precision = 16</span><br><span class="line"></span><br><span class="line">; The number of significant digits displayed in floating point numbers.</span><br><span class="line">; http://php.net/precision</span><br><span class="line">precision = 16</span><br></pre></td></tr></table></figure>
+<p>另外源码里有个json_encode的选项JSON_PRESERVE_ZERO_FRACTION, 这个的意思是如果是个是个整数, 是否保留小数点和0, 来看测试结果:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">echo json_encode(277.0);</span><br><span class="line">// 277</span><br><span class="line">echo json_encode(277.0, JSON_PRESERVE_ZERO_FRACTION);</span><br><span class="line">// 277.0</span><br></pre></td></tr></table></figure>
+<p>转自:<a href="https://segmentfault.com/a/1190000008737065" target="_blank" rel="noopener">https://segmentfault.com/a/1190000008737065</a></p>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>

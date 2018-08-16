@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang=zh-CN>
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  
+    <link rel="icon" href="">
+  
+    
+  <title>Laravel 契约（Contracts） | 路飞的博客</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+  <header>
+  <div class="header-container">
+    <a class='logo' href="/">
+      <span>路飞的博客</span>
+    </a>
+    <ul class="right-header">
+      
+        <li class="nav-item">
+          
+            <a href="/" class="item-link">首页</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/archives" class="item-link">归档</a>
+          
+        </li>
+      
+        <li class="nav-item">
+          
+            <a href="/about" class="item-link">关于</a>
+          
+        </li>
+      
+    </ul>
+  </div>
+</header>
+
+  <main id='post'>
+  <div class="content">
+    <article>
+        <section class="content markdown-body">
+          <h1>Laravel 契约（Contracts）</h1>
+          <div class='post-meta'>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年07月02日</time>
+            
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#Laravel" class='tag'>Laravel</a>
+
+
+            
+          </div>
+          <p>关于契约是否仅仅是这种用法， 和什么时候应该使用契约还是得猿们自行研究，有什么问题欢迎一起探讨！</p>
+<h4 id="契约是什么"><a href="#契约是什么" class="headerlink" title="契约是什么"></a>契约是什么</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Laravel中的契约是指框架提供的一系列定义核心服务的接口，比如缓存，队列，日志的接口，契约就是接口</span><br></pre></td></tr></table></figure>
+<h4 id="为什么要定义接口"><a href="#为什么要定义接口" class="headerlink" title="为什么要定义接口"></a>为什么要定义接口</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">定义接口目的为了解耦</span><br></pre></td></tr></table></figure>
+<p>当我们依赖注入缓存实例的时候laravel实现如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">例如：我们选择使用memcached 缓存驱动</span><br><span class="line">use Illuminate\Contracts\Cache\Repository as Cache;</span><br><span class="line">class Repository&#123;</span><br><span class="line">    /**</span><br><span class="line">     * 创建一个新的Repository实例</span><br><span class="line">     *</span><br><span class="line">     * @param  Cache  $cache</span><br><span class="line">     * @return void</span><br><span class="line">     */</span><br><span class="line">    public function __construct(Cache $cache)</span><br><span class="line">    &#123;</span><br><span class="line">        $this-&gt;cache = $cache;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>不定义接口</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">如果不定义接口我们必须这样写</span><br><span class="line">use Memcached;</span><br><span class="line">class Repository&#123;</span><br><span class="line">    /**</span><br><span class="line">     * 创建一个新的Repository实例</span><br><span class="line">     *</span><br><span class="line">     * @param  Cache  $cache</span><br><span class="line">     * @return void</span><br><span class="line">     */</span><br><span class="line">    public function __construct(Memcached $cache)</span><br><span class="line">    &#123;</span><br><span class="line">        $this-&gt;cache = $cache;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样当我们需要切换缓存驱动为redis 的时候，我们必须去控制器中把依赖注入的类型约定修改成redis，因为redis 的实现，和Memcached 并不一定完全相同，这就说明Memcached缓存紧密耦合与laravel </p>
+<h4 id="什么才算是松耦合"><a href="#什么才算是松耦合" class="headerlink" title="什么才算是松耦合"></a>什么才算是松耦合</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">什么才算松耦合，当系统升级，需要对一种实现进行修改（如从Memcached 需要升级到Redis）时，能够不对代码库进行修改，只需要对配置进行修改就能完成升级的时候就算是松耦合了！</span><br></pre></td></tr></table></figure>
+<h4 id="一个契约两种，或者多种实现"><a href="#一个契约两种，或者多种实现" class="headerlink" title="一个契约两种，或者多种实现"></a>一个契约两种，或者多种实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">个人感觉，契约既然定了，那么对应的实现应该是两种，或者更多的实现，或者在不久的将来会有两个或者更多的实现，契约就是来规定这么多实现的。如果肯定只有一种实现，感觉契约就没啥用了！</span><br></pre></td></tr></table></figure>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><ul>
+<li>定义契约，是为了一组功能实现的一个约定，方便第三方接口开发人员的开发</li>
+<li>契约更像一个框架的一个目录索引，所有契约的实现组成了框架所有的核心服务，并且可以通过契约快速了解这一组功能是干什么的</li>
+<li>对于缓存类来说，缓存的契约，就是为了规定各种缓存实现（Memcached,Redis,文件缓存）需要实现的功能</li>
+</ul>
+
+        </section>
+    </article>
+    
+        
+  </div>
+  <aside>
+    
+    <div class="toc-container">
+        <h1>目录</h1>
+        <div class="content">
+            <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#契约是什么"><span class="toc-number">1.</span> <span class="toc-text">契约是什么</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#为什么要定义接口"><span class="toc-number">2.</span> <span class="toc-text">为什么要定义接口</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#什么才算是松耦合"><span class="toc-number">3.</span> <span class="toc-text">什么才算是松耦合</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#一个契约两种，或者多种实现"><span class="toc-number">4.</span> <span class="toc-text">一个契约两种，或者多种实现</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#总结"><span class="toc-number">5.</span> <span class="toc-text">总结</span></a></li></ol>
+        </div>
+    </div>
+    
+  </aside>
+</main>
+
+
+
+  
+<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script src="/lib/in-view.min.js"></script>
+<script src="/lib/lodash.min.js"></script>
+<script>
+  var isDown = true
+  var oldY = 0
+  inView.offset(50)
+
+  document.body.addEventListener('touchstart', function(){});
+  
+  window.addEventListener('scroll', _.throttle(e => {
+    var currentY = window.scrollY
+    if((oldY - currentY) < 0) {
+      isDown = true
+    } else {
+      isDown = false
+    }
+    oldY = currentY
+  }, 250))
+
+  $("article img").each(function() {
+      var strA = "<a data-fancybox='gallery' href='" + this.src + "'></a>";
+      $(this).wrapAll(strA);
+  });
+
+  $('.toc-link').each(function() {
+      var href = $(this).attr("href");
+      
+      inView(href).on('exit', () => {
+        if (isDown) {
+          handleActive(href)
+        }
+      })
+
+      inView(href).on('enter', () => {
+        if (!isDown) {
+          handleActive(href)
+        }
+      })
+
+      this.onclick = function(e) {
+        var pos = $(href).offset().top - 10;
+        $("html,body").animate({scrollTop: pos}, 300);
+        setTimeout(() => {
+          handleActive(href)
+        }, 350)
+        return false
+      }
+  })
+
+  function handleActive(href) {
+    document.querySelectorAll('.toc-link').forEach(elm => {
+      elm.classList.remove('active')
+    })
+    document.querySelector(".toc [href='"+ href +"']").classList.add('active')
+  }
+</script>
+<script src="/lib/jquery.fancybox.min.js"></script>
+
+
+</body>
+</html>

@@ -10,7 +10,7 @@
     <link rel="icon" href="">
   
     
-  <title>关于我 | 路飞的博客</title>
+  <title>Laravel 获取『上一条』/『下一条』记录 ID | 路飞的博客</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/lib/jquery.fancybox.min.css">
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -38,7 +38,7 @@
       
         <li class="nav-item">
           
-            <a href="/about" class="item-link active">关于</a>
+            <a href="/about" class="item-link">关于</a>
           
         </li>
       
@@ -50,13 +50,25 @@
   <div class="content">
     <article>
         <section class="content markdown-body">
-          <h1>关于我</h1>
+          <h1>Laravel 获取『上一条』/『下一条』记录 ID</h1>
           <div class='post-meta'>
-            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年06月16日</time>
+            <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年01月02日</time>
             
+            
+              | 
+                  <i class="fa fa-tag" aria-hidden="true"></i>
+                
+               
+  <a href="/tags/#laravel" class='tag'>laravel</a>
+
+
             
           </div>
-          
+          <p>我们经常会有比如在当前页显示下一篇，或者上一篇文章这样的这样的需求，你可以像下面这样：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line"></span><br><span class="line">public function show($id)</span><br><span class="line">&#123;</span><br><span class="line">    // 获取当前文章</span><br><span class="line">    $current = Post::find($id);</span><br><span class="line"></span><br><span class="line">    // 获取 “上一篇” 的 ID</span><br><span class="line">    $previousPostID = Post::where(&apos;id&apos;, &apos;&lt;&apos;, $id)-&gt;max(&apos;id&apos;);</span><br><span class="line"></span><br><span class="line">    // 同理，获取 “下一篇” 的 ID</span><br><span class="line">    $nextPostId = Post::where(&apos;id&apos;, &apos;&gt;&apos;, $id)-&gt;min(&apos;id&apos;);</span><br><span class="line"></span><br><span class="line">    return view(&apos;post.show&apos;, compact(&apos;current&apos;, &apos;previousPostID&apos;, &apos;nextPostId&apos;));</span><br><span class="line">&#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>然后就可以在模板里放好相应的链接了：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;a href=&quot;/post/&#123;$previousPostID&#125;&quot;&gt;上一篇&lt;/a&gt; | &lt;a href=&quot;/post/&#123;$nextPostId&#125;&quot;&gt;下一篇&lt;/a&gt;</span><br></pre></td></tr></table></figure>
+
         </section>
     </article>
     

@@ -50,9 +50,9 @@
   <div class="posts-list">
     
       <section>
-        <a href="/20180102/">
+        <a href="/20170121/">
           <h3 class='post-head'>
-            Laravel 获取『上一条』/『下一条』记录 ID
+            env 配置文件加载
           </h3>
         </a>
         
@@ -60,114 +60,21 @@
           
             
               
-                <p>我们经常会有比如在当前页显示下一篇，或者上一篇文章这样的这样的需求，你可以像下面这样：</p>
+                <ul>
               
           
         </div>
         <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2018年01月02日</time>
-          
-          
-            <span class="seperator">|</span>
-             
-                <i class="fa fa-tag" aria-hidden="true"></i>
-              
-             
-  <a href="/tags/#laravel" class='tag'>laravel</a>
-
-
-          
-        </div>
-      </section>
-    
-      <section>
-        <a href="/20171205/">
-          <h3 class='post-head'>
-            PHP防抓取数据curl 解决方法
-          </h3>
-        </a>
-        
-        <div class="post-content">
-          
-            
-              
-                <h5 id="1-使用Snoopy或curl传搜索引擎爬虫的USERAGENT值"><a href="#1-使用Snoopy或curl传搜索引擎爬虫的USERAGENT值" class="headerlink" title="1.使用Snoopy或curl传搜索引擎爬虫的USERAGENT值"></a>1.使用Snoopy或curl传搜索引擎爬虫的USERAGENT值</h5><p>查看搜索引擎爬虫的USERAGENT值：(<a href="https://codemonkeyluffy.github.io/20171008/">https://codemonkeyluffy.github.io/20171008/</a>)</p>
-              
-          
-        </div>
-        <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年12月05日</time>
-          
-          
-            <span class="seperator">|</span>
-             
-                <i class="fa fa-tag" aria-hidden="true"></i>
-              
-             
-  <a href="/tags/#php" class='tag'>php</a>
-
-
-          
-        </div>
-      </section>
-    
-      <section>
-        <a href="/20171123/">
-          <h3 class='post-head'>
-            Elasticsearch入门
-          </h3>
-        </a>
-        
-        <div class="post-content">
-          
-            
-              
-                <blockquote>
-              
-          
-        </div>
-        <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年11月23日</time>
-          
-          
-            <span class="seperator">|</span>
-             
-                <i class="fa fa-tag" aria-hidden="true"></i>
-              
-             
-  <a href="/tags/#Elasticsearch" class='tag'>Elasticsearch</a>
-
-
-          
-        </div>
-      </section>
-    
-      <section>
-        <a href="/20171008/">
-          <h3 class='post-head'>
-            搜索引擎爬虫蜘蛛的useragent
-          </h3>
-        </a>
-        
-        <div class="post-content">
-          
-            
-              
-                <h4 id="百度爬虫"><a href="#百度爬虫" class="headerlink" title="百度爬虫"></a>百度爬虫</h4><ul>
-              
-          
-        </div>
-        <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年10月08日</time>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年01月21日</time>
           
           
         </div>
       </section>
     
       <section>
-        <a href="/20170731/">
+        <a href="/20161226/">
           <h3 class='post-head'>
-            PHP实现文件下载断点续传
+            MySQL索引入门简述
           </h3>
         </a>
         
@@ -175,74 +82,12 @@
           
             
               
-                <p>&emsp;&emsp;如果我们的网站提供文件下载的服务，那么通常我们都希望下载可以断点续传(Resumable Download)，也就是说用户可以暂停下载，并在未来的某个时间从暂停处继续下载，而不必重新下载整个文件。</p>
+                <h4 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h4><p>用来加快<strong>查询</strong>的技术很多，其中<strong>最重要的是索引</strong>。通常索引能够快速提高查询速度。如果不适用索引，MYSQL必须从第一条记录开始读完整个表，直到找出相关的行。表越大，花费的时间越多。但也不全是这样。本文讨论索引是什么，如何使用索引来改善性能，以及索引可能降低性能的情况。</p>
               
           
         </div>
         <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年07月31日</time>
-          
-          
-            <span class="seperator">|</span>
-             
-                <i class="fa fa-tag" aria-hidden="true"></i>
-              
-             
-  <a href="/tags/#php" class='tag'>php</a>
-
-
-          
-        </div>
-      </section>
-    
-      <section>
-        <a href="/20170718/">
-          <h3 class='post-head'>
-            网站大规模并发处理方案：电商秒杀与抢购
-          </h3>
-        </a>
-        
-        <div class="post-content">
-          
-            
-              
-                <h4 id="1-大规模并发带来的挑战"><a href="#1-大规模并发带来的挑战" class="headerlink" title="1.大规模并发带来的挑战"></a>1.大规模并发带来的挑战</h4><p>在过去的工作中，我曾经面对过5w每秒的高并发秒杀功能，在这个过程中，整个Web系统遇到了很多的问题和挑战。如果Web系统不做针对性的优化，会轻而易举地陷入到异常状态。我们现在一起来讨论下，优化的思路和方法哈。</p>
-              
-          
-        </div>
-        <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年07月18日</time>
-          
-          
-            <span class="seperator">|</span>
-             
-                <i class="fa fa-tag" aria-hidden="true"></i>
-              
-             
-  <a href="/tags/#php" class='tag'>php</a>
-
-
-          
-        </div>
-      </section>
-    
-      <section>
-        <a href="/20170608/">
-          <h3 class='post-head'>
-            MySQL悲观锁Laravel的实现
-          </h3>
-        </a>
-        
-        <div class="post-content">
-          
-            
-              
-                <blockquote>
-              
-          
-        </div>
-        <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年06月08日</time>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年12月26日</time>
           
           
             <span class="seperator">|</span>
@@ -258,9 +103,9 @@
       </section>
     
       <section>
-        <a href="/20170502/">
+        <a href="/20161213/">
           <h3 class='post-head'>
-            十个 Laravel 5 程序优化技巧
+            如何找出MySQL中正在锁表的语句？
           </h3>
         </a>
         
@@ -268,12 +113,12 @@
           
             
               
-                <h3 id="说明"><a href="#说明" class="headerlink" title="说明"></a>说明</h3><hr>
+                <p><strong>MySQL</strong>在每个版本发布时，都会加上一些用以监控内部活动的工具。</p>
               
           
         </div>
         <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年05月02日</time>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年12月13日</time>
           
           
             <span class="seperator">|</span>
@@ -281,7 +126,7 @@
                 <i class="fa fa-tag" aria-hidden="true"></i>
               
              
-  <a href="/tags/#laravel" class='tag'>laravel</a>
+  <a href="/tags/#mysql" class='tag'>mysql</a>
 
 
           
@@ -289,9 +134,9 @@
       </section>
     
       <section>
-        <a href="/20170430/">
+        <a href="/20161111/">
           <h3 class='post-head'>
-            PHP多进程编程初步
+            MySQL查看实时执行的SQL语句
           </h3>
         </a>
         
@@ -299,12 +144,43 @@
           
             
               
-                <p>羡慕火影忍者里鸣人的影分身么？没错，PHP程序是可以开动影分身的！想完成任务，又觉得一个进程太慢，那么，试试用多进程来搞吧。这篇文章将会介绍一下PHP多进程的基本需求，如何创建多进程以及基本的信号控制，暂时不会告诉你如何进行进程间通信和信息共享。</p>
+                <p>MySQL默认不能实时查看执行的SQL语句，因为这会消耗一定的资源。</p>
               
           
         </div>
         <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年04月30日</time>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年11月11日</time>
+          
+          
+            <span class="seperator">|</span>
+             
+                <i class="fa fa-tag" aria-hidden="true"></i>
+              
+             
+  <a href="/tags/#mysql" class='tag'>mysql</a>
+
+
+          
+        </div>
+      </section>
+    
+      <section>
+        <a href="/20160928/">
+          <h3 class='post-head'>
+            为什么in_array(0, ['a', 'b', 'c'])返回true
+          </h3>
+        </a>
+        
+        <div class="post-content">
+          
+            
+              
+                <p>在PHP中，数据会<strong>自动转换类型</strong>后再进行比较。</p>
+              
+          
+        </div>
+        <div class='post-meta'>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年09月28日</time>
           
           
             <span class="seperator">|</span>
@@ -320,9 +196,9 @@
       </section>
     
       <section>
-        <a href="/20170212/">
+        <a href="/20160713/">
           <h3 class='post-head'>
-            PHP过滤数组中的0、null、false和''等空值
+            MySQL重置root密码
           </h3>
         </a>
         
@@ -330,12 +206,65 @@
           
             
               
-                <p>PHP对数组的操作已经一套非常完整的函数，其中就包括过滤空值。</p>
+                <p>我们介绍一种无需密码的<strong>重置root密码</strong>的方式。</p>
               
           
         </div>
         <div class='post-meta'>
-          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2017年02月12日</time>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年07月13日</time>
+          
+          
+            <span class="seperator">|</span>
+             
+                <i class="fa fa-tag" aria-hidden="true"></i>
+              
+             
+  <a href="/tags/#mysql" class='tag'>mysql</a>
+
+
+          
+        </div>
+      </section>
+    
+      <section>
+        <a href="/20160709/">
+          <h3 class='post-head'>
+            PHP使用数据库的并发问题
+          </h3>
+        </a>
+        
+        <div class="post-content">
+          
+            
+              
+                <p>在并行系统中并发问题永远不可忽视。尽管PHP语言原生没有提供多线程机制，那并不意味着所有的操作都是线程安全的。尤其是在操作诸如订单、支付等业务系统中，更需要注意操作数据库的并发问题。 接下来我通过一个案例分析一下PHP操作数据库时并发问题的处理问题。 </p>
+              
+          
+        </div>
+        <div class='post-meta'>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年07月09日</time>
+          
+          
+        </div>
+      </section>
+    
+      <section>
+        <a href="/20160521/">
+          <h3 class='post-head'>
+            ORM到底是用还是不用？
+          </h3>
+        </a>
+        
+        <div class="post-content">
+          
+            
+              
+                <p>ORM即Object/Relation Mapping的简写，一般称作“对象关系映射”，在Web开发中最常出没于和关系型数据库交互的地方。接口、中间件、库、包，你都可以这么称呼它。</p>
+              
+          
+        </div>
+        <div class='post-meta'>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年05月21日</time>
           
           
             <span class="seperator">|</span>
@@ -346,6 +275,59 @@
   <a href="/tags/#php" class='tag'>php</a>
 
 
+          
+        </div>
+      </section>
+    
+      <section>
+        <a href="/20160423/">
+          <h3 class='post-head'>
+            MySQL Explain 解析
+          </h3>
+        </a>
+        
+        <div class="post-content">
+          
+            
+              
+                <h4 id="一、语法"><a href="#一、语法" class="headerlink" title="一、语法"></a>一、语法</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">explain &lt; table_name &gt;</span><br></pre></td></tr></table></figure>
+              
+          
+        </div>
+        <div class='post-meta'>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年04月23日</time>
+          
+          
+            <span class="seperator">|</span>
+             
+                <i class="fa fa-tag" aria-hidden="true"></i>
+              
+             
+  <a href="/tags/#mysql" class='tag'>mysql</a>
+
+
+          
+        </div>
+      </section>
+    
+      <section>
+        <a href="/20160302/">
+          <h3 class='post-head'>
+            MySQL存储引擎MyISAM与InnoDB的区别比较
+          </h3>
+        </a>
+        
+        <div class="post-content">
+          
+            
+              
+                <p>使用MySQL当然会接触到MySQL的存储引擎，在新建数据库和新建数据表的时候都会看到。</p>
+              
+          
+        </div>
+        <div class='post-meta'>
+          <i class="fa fa-calendar" aria-hidden="true"></i> <time>2016年03月02日</time>
+          
           
         </div>
       </section>
@@ -398,12 +380,12 @@
   <div class="paging-container">
     
     <div class='page-prev'>
-      <a href="/">上一页</a>
+      <a href="/page/2/">上一页</a>
     </div>
     
     
     <div class='page-next'>
-      <a href="/page/3/">下一页</a>
+      <a href="/page/4/">下一页</a>
     </div>
     
   </div>
